@@ -1,0 +1,38 @@
+name: verify
+
+# 这个文件的作用不是"跑测试"，是让"可信"不依赖维护者的记性：
+# 每次 push 都重新证明一遍 —— 契约在、历史干净、反证咬得住、两道门都过。
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # 历史扫描要全量历史；浅克隆会漏掉早期提交
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 契约体检（三段齐全 + 有阻断项）
+        run: python tools/contract_check.py contracts/仓库交付.json contracts/仓库治理.json contracts/教培-能力契约.json
+
+      - name: 无敏感信息（工作树 + 全部历史 + 规则自测）
+        run: python tools/privacy_scan.py --tree --history
+
+      - name: 反证（改坏了必须变红）
+        run: python tools/mutation_check.py
+
+      - name: 回归钉子
+        run: python -m unittest discover -s tests -t . -q
+
+      - name: 质量门（仓库交付契约）
+        run: python tools/score.py contracts/仓库交付.json
+
+      - name: 治理门（发布前）
+        run: python tools/score.py contracts/仓库治理.json

@@ -1,5 +1,7 @@
 # WorkCovenant · 职业契约框架
 
+[![verify](https://github.com/asds121/workcovenant/actions/workflows/verify.yml/badge.svg)](https://github.com/asds121/workcovenant/actions/workflows/verify.yml)
+
 > **一句话**：它不是又一个软件工具，而是一套把「验收」从口头甩锅变成**可执行判据**的开源契约框架 —— 让"软件不折磨人、单人也能带数字团队、约束不是敌人"变成可运行、可验证、可复用的默认期望。
 
 它是一个**框架**，不是产品；会计那个 PDF 分录工作台是它的**样板间**，证明框架能落地，不是框架本身。
@@ -33,12 +35,13 @@ R1   一眼知道这是什么　3/3　做到
 结论：通过
 ```
 
-三条命令，三种"不体面"都能当场暴露：
+三条命令，四种"不体面"都能当场暴露：
 
 ```bash
 python tools/contract_check.py contracts/*.json   # 契约自己写全了没有
-python tools/mutation_check.py                    # 引擎咬不咬得住（6 条反证）
-python -m unittest discover -s tests -t . -q      # 打分口径的回归钉子
+python tools/mutation_check.py                    # 引擎咬不咬得住（8 条反证）
+python tools/privacy_scan.py --tree --history     # 有没有敏感信息（含历史）
+python -m unittest discover -s tests -t . -q      # 判定口径的回归钉子
 ```
 
 换一个职业，看第二份契约（判据内容全换，机制一个字没改）：
@@ -156,9 +159,34 @@ WorkCovenant 只做一件事：**把"做到"写成一段能一口气走完的动
 
 ### 为什么还要一个反证脚本
 
-一个永远报绿的引擎，比没有引擎更能骗人。`tools/mutation_check.py` 故意把东西改坏六次
-（改期望、删交付物、缺前置料、阻断项红、人工项没证据、契约缺字段），**每一次都必须当场变红**。
-改不红就说明那一类错误会静默漏过去。
+一个永远报绿的引擎，比没有引擎更能骗人。`tools/mutation_check.py` 故意把东西改坏八次
+（改期望、删交付物、缺前置料、阻断项红、人工项没证据、契约缺字段、规则改瞎、植入密钥），
+**每一次都必须当场变红**。改不红就说明那一类错误会静默漏过去。
+
+---
+
+## 这个仓库怎么管自己
+
+**这个框架的第一个用户是这个仓库自己。** 一份连自己都管不住的框架，没有资格管别人的工作。
+
+治理契约 [`contracts/仓库治理.json`](contracts/仓库治理.json) 盯四件事，任一不过就不发布：
+
+| 维度 | 防的是什么 | 怎么判 |
+|---|---|---|
+| **高质量** | 缺文件、占位实现、巨型文件 | 八份必交文件齐全且够长 · 代码里没有 `TODO`/`NotImplemented` · 单文件 py ≤20KB |
+| **可信** | 分数不可复现、契约漏验、质量门自己不及格 | 同一契约两次跑**判定逐格相同** · 三份契约全过体检 · 交付契约本身 100 分 |
+| **合规** | 许可不明、归属缺失、没有贡献/漏洞渠道 | LICENSE 是 Apache-2.0 全文 · NOTICE 写明归属 · CONTRIBUTING 给了验收命令 |
+| **无敏感信息** | 客户名、税号、账号、密钥、本机路径 | 工作树 0 命中 · **git 历史 0 命中** · 植入假密钥必须被抓住 |
+
+```bash
+python tools/score.py contracts/仓库治理.json     # 发布前的门
+```
+
+关于第三行多说一句：**工作树删干净没用，历史删不干净。** 所以敏感信息扫描有三条判据 ——
+工作树、历史、以及"扫描器自己会不会失灵"（规则自带正例与反例，自测不过就退出码 3，
+`3` 表示扫描器坏了，这时"干净"两个字毫无意义）。
+
+细节、威胁模型与已知局限见 [`docs/仓库治理.md`](docs/仓库治理.md)。
 
 ---
 
@@ -169,9 +197,13 @@ WorkCovenant 只做一件事：**把"做到"写成一段能一口气走完的动
 - 契约 schema v1.0 + 加载与全量校验（[`wvc/contract.py`](wvc/contract.py)）
 - 判据执行器：三档结果、缺料不算过、交付物缺失算红（[`wvc/checks.py`](wvc/checks.py)）
 - 打分与报告（[`wvc/score.py`](wvc/score.py)）
-- 两份**真跑**的契约：[`contracts/仓库交付.json`](contracts/仓库交付.json)（对本仓库自己打分）、
+- 敏感信息扫描器：8 条规则，每条自带正反例，支持扫 git 历史（[`wvc/privacy.py`](wvc/privacy.py)）
+- 三份**真跑**的契约：[`contracts/仓库交付.json`](contracts/仓库交付.json)（质量门）、
+  [`contracts/仓库治理.json`](contracts/仓库治理.json)（发布门）、
   [`contracts/教培-能力契约.json`](contracts/教培-能力契约.json)（证明可迁移）
-- 反证脚本与回归钉子（[`tools/mutation_check.py`](tools/mutation_check.py)、[`tests/`](tests/)）
+- 反证脚本（8 条）、可重放校验、回归钉子（[`tools/`](tools/)、[`tests/`](tests/)）
+- 合规文件：[`LICENSE`](LICENSE)、[`NOTICE`](NOTICE)、[`CONTRIBUTING.md`](CONTRIBUTING.md)、
+  [`SECURITY.md`](SECURITY.md)、[`CHANGELOG.md`](CHANGELOG.md)
 - 核心文档原文：[`docs/产品内涵.md`](docs/产品内涵.md)（讨论过程，不改）
 
 **没有**（刻意不发）：
@@ -196,10 +228,12 @@ WorkCovenant 只做一件事：**把"做到"写成一段能一口气走完的动
 
 1. ~~冻结契约 schema v1.0~~（已冻结，见 [`docs/契约规范.md`](docs/契约规范.md)）
 2. ~~评分脚本拆成独立公共评分引擎~~（已完成：`wvc/`，零依赖）
-3. **基准测试集 + 反例库**：现在只有 6 条反证，要扩到覆盖四类判据的全部失败模式
-4. 再做 2 个非会计职业模板（教培已有雏形，缺工程验收）
-5. 标准化四角色协议：谁决策、谁建议、谁抽取、谁拦截、谁解释、冲突谁优先
-6. 多参考实现：单人本地版 / 小团队协作版 / 企业嵌入版，共享契约与评分
+3. ~~用框架治理这个仓库本身~~（已完成：8 条反证 + [`contracts/仓库治理.json`](contracts/仓库治理.json)）
+4. **基准测试集 + 反例库**：现在 8 条反证覆盖核心失败模式，还缺四类判据的边角
+   （cmd 超时/编码、file 编码、links 中文锚点、manual 假证据）
+5. 再做 2 个非会计职业模板（教培已有雏形，缺工程验收）
+6. 标准化四角色协议：谁决策、谁建议、谁抽取、谁拦截、谁解释、冲突谁优先
+7. 多参考实现：单人本地版 / 小团队协作版 / 企业嵌入版，共享契约与评分
 
 ---
 

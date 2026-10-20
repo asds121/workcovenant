@@ -102,11 +102,11 @@
         },
         {
           "id": "R3-b",
-          "title": "反证脚本 6 条全部咬住",
+          "title": "反证全部咬住（条数由脚本自己报，不写死）",
           "why": "一个永远报绿的引擎，比没有引擎更能骗人",
           "kind": "cmd",
           "run": "{python} tools/mutation_check.py --quiet",
-          "expect": { "exit": 0, "stdout_regex": "6/6" },
+          "expect": { "exit": 0, "stdout_regex": "反证 ([1-9]\\d*)/\\1 咬住" },
           "blocking": true
         },
         {

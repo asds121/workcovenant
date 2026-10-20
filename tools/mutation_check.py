@@ -4,13 +4,16 @@
 一个永远报绿的引擎，比没有引擎更能骗人：它给出一张漂亮的表，让所有人放心。
 所以这里不问"引擎算得对不对"，只问一件事：**它咬不咬得住。**
 
-六条反证，每条都改一处、必须当场变红；改不红就说明那一类错误会漏过去，
+八条反证，每条都改一处、必须当场变红；改不红就说明那一类错误会漏过去，
 漏过去的错误最后会以"验收通过了但线上是坏的"的形式出现在用户面前。
+
+后两条专门盯**敏感信息扫描器**：规则被改瞎、真密钥被植入，
+两种都必须当场说破 —— 扫描器失灵时给出的"干净"，是最贵的假报告。
 
     python tools/mutation_check.py           # 逐条说话
     python tools/mutation_check.py --quiet   # 只留结论（给契约判据调用）
 
-退出码：0 六条全咬住 / 1 有漏网的。
+退出码：0 八条全咬住 / 1 有漏网的。
 """
 from __future__ import annotations
 
@@ -18,12 +21,14 @@ import copy
 import json
 import sys
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from wvc import contract as C      # noqa: E402
+from wvc import privacy as P       # noqa: E402
 from wvc import score as S         # noqa: E402
 
 BASE = {
@@ -177,6 +182,26 @@ def _write(ws: Workspace, raw: dict) -> Path:
     return p
 
 
+def m7_blind_rule(ws: Workspace) -> str:
+    """把一条敏感规则改瞎（永远不命中）—— 自测必须当场抓住。"""
+    blind = [replace(P.RULES[0], pattern="(?!)")]
+    bad = P.selftest(blind)
+    assert bad, "规则退化成永不命中，自测居然一句话没说"
+    assert "没咬住正例" in bad[0], f"自测说错了：{bad[0]}"
+    assert P.selftest() == [], "真规则表自己也过不了自测"
+    return "规则改瞎 → 自测红；真规则表自测全过"
+
+
+def m8_planted_secret(ws: Workspace) -> str:
+    """往工作树植入一条假密钥 —— 扫描器必须命中（漏报比误报严重得多）。"""
+    secret = "gh" "p_" + "Q" * 36
+    (ws.root / "config.py").write_text(f'TOKEN = "{secret}"\n', encoding="utf-8")
+    hits = P.scan_tree(ws.root).hits
+    assert any(h.rule_id == "P5" for h in hits), "植入的密钥没被抓住 —— 扫描器在漏"
+    assert all("***" in h.value for h in hits), "报告里出现了明文"
+    return "植入假密钥 → P5 命中，且报告已打码"
+
+
 MUTATIONS = [
     ("M1 期望改坏", m1_expectation),
     ("M2 删交付物", m2_missing_deliverable),
@@ -184,6 +209,8 @@ MUTATIONS = [
     ("M4 阻断项红", m4_blocking_veto),
     ("M5 人工证据", m5_manual_evidence),
     ("M6 契约坏了", m6_broken_contract),
+    ("M7 规则改瞎", m7_blind_rule),
+    ("M8 植入密钥", m8_planted_secret),
 ]
 
 

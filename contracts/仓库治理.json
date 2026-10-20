@@ -1,0 +1,172 @@
+{
+  "format": "workcovenant.contract/1",
+  "id": "repo-governance",
+  "name": "仓库治理契约",
+  "profession": "仓库治理（公开仓库）",
+  "version": "1.0.0",
+  "owner": "workcovenant 维护者",
+  "note": "这是发布前的门：高质量 / 可信 / 合规 / 无敏感信息，四条任一不过就不发。它和「仓库交付契约」分工不同 —— 交付契约管「写得好不好」，本契约管「能不能公开」。判据全部跑真命令，没有一条靠自觉。",
+  "requirements": [
+    {
+      "id": "G1",
+      "title": "高质量：该有的都在，且不是空壳",
+      "verbatim": "「删掉它不会导致判断错误，就删；不给半成品（判据：能不能直接导入 / 直接用）」—— 总纲·简 / 炼",
+      "loop": [
+        "克隆一个干净副本",
+        "不装任何第三方包",
+        "README、契约规范、四角色协议、CONTRIBUTING、SECURITY、LICENSE、NOTICE 全部在且能读"
+      ],
+      "criteria": [
+        {
+          "id": "G1-a",
+          "title": "README 是完整的入口，不是占位",
+          "why": "首屏答不出「这是什么」，其它文件写得再好也没人走到",
+          "kind": "file",
+          "path": "README.md",
+          "min_bytes": 4000,
+          "blocking": true
+        },
+        {
+          "id": "G1-b",
+          "title": "八份必交文件齐全且够长",
+          "why": "缺一份就等于让读者自己猜：许可怎么算、漏洞往哪报、改动怎么提",
+          "kind": "cmd",
+          "run": "{python} -c \"from pathlib import Path;need={'README.md':4000,'LICENSE':8000,'NOTICE':100,'CONTRIBUTING.md':400,'SECURITY.md':200,'CHANGELOG.md':200,'docs/契约规范.md':4000,'docs/四角色协议.md':2500};miss=[k for k,v in need.items() if not Path(k).is_file() or Path(k).stat().st_size<v];print('ALL_OK' if not miss else 'MISS:'+','.join(miss))\"",
+          "expect": { "stdout_contains": "ALL_OK" }
+        },
+        {
+          "id": "G1-c",
+          "title": "代码里没有占位实现",
+          "why": "TODO / NotImplemented 是「我还没做」的另一种写法，而验收单上它会显示成已交付",
+          "kind": "cmd",
+          "run": "{python} -c \"import re,pathlib;pat=re.compile(r'\\b(TODO|FIXME|XXX)\\b|NotImplementedError');bad=[f'{p}:{i}' for p in pathlib.Path('.').rglob('*.py') if '.git' not in p.parts for i,l in enumerate(p.read_text(encoding='utf-8',errors='replace').splitlines(),1) if pat.search(l)];print('ALL_OK' if not bad else 'PLACEHOLDER:'+','.join(bad[:5]))\"",
+          "expect": { "stdout_contains": "ALL_OK" }
+        },
+        {
+          "id": "G1-d",
+          "title": "单个文件不臃肿（py ≤20KB，md/json ≤60KB）",
+          "why": "巨型文件是维护成本的复利：改一行要读八百行，review 直接放弃",
+          "kind": "cmd",
+          "run": "{python} -c \"import pathlib;big=[f'{p}({p.stat().st_size//1024}KB)' for p in pathlib.Path('.').rglob('*') if p.is_file() and '.git' not in p.parts and p.suffix in {'.py','.md','.json'} and p.stat().st_size>(20*1024 if p.suffix=='.py' else 60*1024)];print('ALL_OK' if not big else 'BIG:'+','.join(big))\"",
+          "expect": { "stdout_contains": "ALL_OK" }
+        }
+      ]
+    },
+    {
+      "id": "G2",
+      "title": "可信：判定可重放，证据可复核",
+      "verbatim": "「可重放（逐格相同，非『跑通』）、可审核（独立只读体检）、可溯源」—— 总纲·稳",
+      "loop": [
+        "同一份契约连跑两次",
+        "两次的判定逐格相同",
+        "三份契约都通过体检，交付契约 100 分"
+      ],
+      "criteria": [
+        {
+          "id": "G2-a",
+          "title": "可重放：两次跑判定逐格相同",
+          "why": "只证明「这次跑通了」的分数，下次换台机器就没有意义",
+          "kind": "cmd",
+          "run": "{python} tools/replay_check.py contracts/教培-能力契约.json",
+          "expect": { "exit": 0, "stdout_contains": "可重放" },
+          "blocking": true
+        },
+        {
+          "id": "G2-b",
+          "title": "三份契约全部通过体检（三段齐全 + 有阻断项）",
+          "why": "契约可以 100 分却漏验关键动作；体检先回答「该验的验了没有」",
+          "kind": "cmd",
+          "run": "{python} tools/contract_check.py contracts/仓库交付.json contracts/仓库治理.json contracts/教培-能力契约.json",
+          "expect": { "exit": 0, "stdout_contains": "全部合格" }
+        },
+        {
+          "id": "G2-c",
+          "title": "交付契约本身 100 分",
+          "why": "治理门如果允许一个不及格的质量门通过，它就只是在走流程",
+          "kind": "cmd",
+          "run": "{python} tools/score.py contracts/仓库交付.json --json",
+          "expect": { "exit": 0, "stdout_contains": "\"overall\": 100.0" },
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "G3",
+      "title": "合规：许可、归属、贡献与漏洞渠道都写死了",
+      "verbatim": "「开源不是为了赚钱，而是抬高下限；被抄是成功的一部分」—— docs/产品内涵.md §3.5",
+      "loop": [
+        "打开 LICENSE 看清是 Apache-2.0 全文",
+        "打开 NOTICE 看到版权归属",
+        "想贡献或报漏洞时，CONTRIBUTING / SECURITY 里有明确路径"
+      ],
+      "criteria": [
+        {
+          "id": "G3-a",
+          "title": "LICENSE 是 Apache-2.0 全文，不是占位说明",
+          "why": "许可写不清的仓库，企业法务会直接判不可用 —— 等于没开源",
+          "kind": "file",
+          "path": "LICENSE",
+          "min_bytes": 8000,
+          "contains": "Apache License\\s+Version 2\\.0",
+          "blocking": true
+        },
+        {
+          "id": "G3-b",
+          "title": "NOTICE 写明版权归属",
+          "why": "Apache-2.0 分发时要求保留归属信息；缺了它，再分发方会踩坑",
+          "kind": "file",
+          "path": "NOTICE",
+          "contains": "^Copyright",
+          "min_bytes": 100
+        },
+        {
+          "id": "G3-c",
+          "title": "CONTRIBUTING 给了验收命令，SECURITY 给了报告渠道",
+          "why": "只说「欢迎 PR」而不说怎么验，等于把验收成本转给贡献者",
+          "kind": "cmd",
+          "run": "{python} -c \"from pathlib import Path;c=Path('CONTRIBUTING.md').read_text(encoding='utf-8');s=Path('SECURITY.md').read_text(encoding='utf-8');need=['score.py','contract_check.py','mutation_check.py','privacy_scan.py'];miss=[x for x in need if x not in c];print('OK' if not miss and '漏洞' in s else 'BAD:'+','.join(miss+['SECURITY 没写漏洞渠道']))\"",
+          "expect": { "stdout_contains": "OK" }
+        }
+      ]
+    },
+    {
+      "id": "G4",
+      "title": "无敏感信息：工作树、历史、扫描器自己，三处都要干净",
+      "verbatim": "「公开仓库最贵的错误，是『以为删掉了』」—— 本仓库 docs/仓库治理.md",
+      "loop": [
+        "扫工作树（含未提交的新文件）",
+        "扫所有提交的新增行",
+        "把一条假密钥植入进去，扫描器必须当场抓住"
+      ],
+      "criteria": [
+        {
+          "id": "G4-a",
+          "title": "工作树 0 命中，且 8 条规则自测全过",
+          "why": "规则失灵时的「干净」是最贵的假报告；所以自测和扫描必须同一条命令里出",
+          "kind": "cmd",
+          "run": "{python} tools/privacy_scan.py --tree",
+          "expect": { "exit": 0, "stdout_contains": "干净" },
+          "blocking": true
+        },
+        {
+          "id": "G4-b",
+          "title": "git 历史 0 命中",
+          "why": "工作树删干净没用：历史里的东西任何人都能 checkout 出来",
+          "kind": "cmd",
+          "run": "{python} tools/privacy_scan.py --history",
+          "expect": { "exit": 0, "stdout_contains": "全部提交干净" },
+          "blocking": true
+        },
+        {
+          "id": "G4-c",
+          "title": "植入假密钥 / 假企业名，扫描器必须抓住",
+          "why": "只会说「干净」的扫描器无法被证伪；必须证明它真的会红",
+          "kind": "cmd",
+          "run": "{python} -m unittest tests.test_privacy -q",
+          "expect": { "exit": 0 },
+          "blocking": true
+        }
+      ]
+    }
+  ]
+}
