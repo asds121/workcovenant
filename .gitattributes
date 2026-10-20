@@ -1,0 +1,4 @@
+# 换行统一为 LF：Windows 检出也不转 CRLF。
+# 理由：本机 core.autocrlf=true，不锁死的话每次提交都会刷一屏警告，
+# 并且跨平台改一行会显示成"整个文件都变了"——那会让 review 直接放弃。
+* text=auto eol=lf
