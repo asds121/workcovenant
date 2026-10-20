@@ -24,13 +24,12 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote
 
 from .contract import Criterion
 
 PASS, FAIL, SKIP = "pass", "fail", "skip"
 MARKS = {PASS: "✅", FAIL: "❌", SKIP: "—"}
-
-TIMEOUT = 120
 
 
 @dataclass
@@ -66,11 +65,12 @@ def _cmd(c: Criterion, root: Path) -> tuple[str, str]:
     run = c.run.replace("{python}", _quote(sys.executable))
     try:
         proc = subprocess.run(run, shell=True, cwd=str(root), capture_output=True,
-                              text=True, encoding="utf-8", errors="replace", timeout=TIMEOUT)
+                              timeout=c.timeout)
     except subprocess.TimeoutExpired:
-        return FAIL, f"命令 {TIMEOUT}s 没跑完：{_short(c.run)}"
+        return FAIL, f"命令 {c.timeout}s 没跑完：{_short(c.run)}"
 
-    out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
+    out = _decode(proc.stdout or b"").strip()
+    err = _decode(proc.stderr or b"").strip()
     want_exit = int(c.expect.get("exit", 0))
     if proc.returncode != want_exit:
         return FAIL, f"退出码 {proc.returncode}（期望 {want_exit}）· {_tail(out, err)}"
@@ -95,7 +95,7 @@ def _file(c: Criterion, root: Path) -> tuple[str, str]:
     if c.min_bytes and size < c.min_bytes:
         return FAIL, f"{c.path} 只有 {size} 字节，少于要求的 {c.min_bytes}"
     if c.contains:
-        text = p.read_text(encoding="utf-8", errors="replace")
+        text = _norm(_decode(p.read_bytes()))
         m = re.search(c.contains, text, re.MULTILINE)
         if not m:
             return FAIL, f"{c.path} 里找不到 /{c.contains}/"
@@ -104,17 +104,35 @@ def _file(c: Criterion, root: Path) -> tuple[str, str]:
 
 
 # ------------------------------------------------------------------ links
+_FENCE = re.compile(r"^[ \t]*(?:```|~~~).*?^[ \t]*(?:```|~~~)", re.S | re.M)
+_INLINE_CODE = re.compile(r"`[^`\n]*`")
+_LINK = re.compile(r"!?\[[^\]]*\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'))?\s*\)")
+_REF_DEF = re.compile(r"^\[[^\]]+\]:\s*(\S+)", re.M)
+_SKIP_PREFIX = ("#", "http://", "https://", "mailto:", "tel:", "data:", "/", "?")
+
+
 def _links(c: Criterion, root: Path) -> tuple[str, str]:
-    """markdown 里的相对链接必须都能解析。链接断了 = 结论指不到出处。"""
+    """markdown 里的相对链接必须都能解析。链接断了 = 结论指不到出处。
+
+    四种形态都要认，否则"检查通过"只是没看见：
+    带标题 `[a](b.md "t")`、尖括号 `<my file.md>`、URL 编码 `%20`、引用式 `[a]: b.md`。
+    代码块与行内代码里的示例链接要跳过 —— 否则文档里教一次写法，检查就红一次。
+    """
     p = root / c.path
     if not p.is_file():
         return FAIL, f"{c.path} 不存在"
-    text = p.read_text(encoding="utf-8", errors="replace")
-    targets = re.findall(r"\[[^\]]*\]\(([^)]+)\)", text)
+    text = _norm(_decode(p.read_bytes()))
+    text = _FENCE.sub("", text)
+    text = _INLINE_CODE.sub("", text)
+    targets = [m.group(1) for m in _LINK.finditer(text)] + _REF_DEF.findall(text)
+
     bad, checked = [], 0
     for t in targets:
-        t = t.split("#", 1)[0].strip()
-        if not t or t.startswith(("http://", "https://", "mailto:", "/")) or "{" in t:
+        t = t.strip().strip("<>").strip()
+        if not t or t.startswith(_SKIP_PREFIX) or "{" in t or "}" in t:
+            continue
+        t = unquote(t.split("#", 1)[0]).strip()
+        if not t:
             continue
         checked += 1
         if not (p.parent / t).exists():
@@ -130,7 +148,7 @@ def _manual(c: Criterion, root: Path) -> tuple[str, str]:
     p = root / c.evidence
     if not p.is_file():
         return SKIP, f"没留证据（{c.evidence}）—— 不算过"
-    text = p.read_text(encoding="utf-8", errors="replace")
+    text = _norm(_decode(p.read_bytes()))
     if "❌" in text:
         return FAIL, f"证据判红：{c.evidence}"
     if "✅" not in text:
@@ -142,6 +160,29 @@ def _manual(c: Criterion, root: Path) -> tuple[str, str]:
 
 
 # ------------------------------------------------------------------ 小工具
+def _decode(blob: bytes) -> str:
+    """先按 UTF-8，再按 GB18030（GBK 的超集）—— 中文 Windows 的控制台输出常是 GBK。
+
+    先 UTF-8 是安全的：GBK 尾部字节很少能凑成合法 UTF-8，反过来却经常成立。
+    两种都不行才 replace，绝不让一个判据因为编码而崩掉。
+    """
+    for enc in ("utf-8", "gb18030"):
+        try:
+            return blob.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return blob.decode("utf-8", "replace")
+
+
+def _norm(text: str) -> str:
+    """正则匹配前统一换行。
+
+    仓库在 Windows 上检出可能是 CRLF；不归一的话 `$` 锚点会匹配到 `\\r` 前面那一位，
+    一条完全正确的判据会在别人的机器上红。
+    """
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def _quote(s: str) -> str:
     return f'"{s}"' if os.sep in s or " " in s else s
 

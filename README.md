@@ -24,7 +24,7 @@ python tools/score.py contracts/仓库交付.json
 
 ```text
 WorkCovenant 契约打分 · 仓库交付契约 1.0.0 · 通用（开源仓库）
-4 条需求 · 12 条判据 · 12 过 / 0 没过 / 0 没验
+4 条需求 · 13 条判据 · 13 过 / 0 没过 / 0 没验
 ==============================================================================
 R1   一眼知道这是什么　3/3　做到
    ✅ 阻断·R1-a     README 在，且不是占位文件
@@ -35,10 +35,11 @@ R1   一眼知道这是什么　3/3　做到
 结论：通过
 ```
 
-三条命令，四种"不体面"都能当场暴露：
+五条命令，五种"不体面"都能当场暴露：
 
 ```bash
 python tools/contract_check.py contracts/*.json   # 契约自己写全了没有
+python tools/benchmark.py                         # 41 种失败模式，引擎还认不认得出来
 python tools/mutation_check.py                    # 引擎咬不咬得住（8 条反证）
 python tools/privacy_scan.py --tree --history     # 有没有敏感信息（含历史）
 python -m unittest discover -s tests -t . -q      # 判定口径的回归钉子
@@ -163,6 +164,23 @@ WorkCovenant 只做一件事：**把"做到"写成一段能一口气走完的动
 （改期望、删交付物、缺前置料、阻断项红、人工项没证据、契约缺字段、规则改瞎、植入密钥），
 **每一次都必须当场变红**。改不红就说明那一类错误会静默漏过去。
 
+### 基准集：失败模式有目录
+
+反证证明"引擎会红"，基准集证明"**红得对**"。`tools/benchmark.py` 是 41 条失败模式，
+每条都写死期望结果，按四类判据分组：
+
+| 组 | 覆盖什么 |
+|---|---|
+| `cmd` | 非零退出码、输出不含、命令不存在、**超时**、GBK 输出、stderr、CRLF |
+| `file` | 不在（红不是灰）、空壳、`^$` 锚点、**CRLF 文件**、GBK 文件 |
+| `links` | 断链、带标题、尖括号空格、`%20` 编码、代码块里的示例、引用式定义 |
+| `manual` | ✅ / ❌ / 没证据 / 有文件没结论 / BOM |
+| `contract` | 缺 `why`、id 重复、阻断靠留证、**绝对路径**、`..` 逃逸、`timeout` 越界 |
+| `score` | 需求等权、退出码 0/1/2、阻断一票否决、红优先于灰 |
+
+这些用例不是抄现状：`tests/test_benchmark.py::TestLoadBearing` 会把对应修复摘掉，
+确认那条用例**真的会红** —— 一条永远绿的用例，只是把现状重复了一遍。
+
 ---
 
 ## 这个仓库怎么管自己
@@ -201,7 +219,7 @@ python tools/score.py contracts/仓库治理.json     # 发布前的门
 - 三份**真跑**的契约：[`contracts/仓库交付.json`](contracts/仓库交付.json)（质量门）、
   [`contracts/仓库治理.json`](contracts/仓库治理.json)（发布门）、
   [`contracts/教培-能力契约.json`](contracts/教培-能力契约.json)（证明可迁移）
-- 反证脚本（8 条）、可重放校验、回归钉子（[`tools/`](tools/)、[`tests/`](tests/)）
+- 反证脚本（8 条）、基准集（41 条失败模式）、可重放校验、回归钉子（[`tools/`](tools/)、[`tests/`](tests/)）
 - 合规文件：[`LICENSE`](LICENSE)、[`NOTICE`](NOTICE)、[`CONTRIBUTING.md`](CONTRIBUTING.md)、
   [`SECURITY.md`](SECURITY.md)、[`CHANGELOG.md`](CHANGELOG.md)
 - 核心文档原文：[`docs/产品内涵.md`](docs/产品内涵.md)（讨论过程，不改）
@@ -229,8 +247,8 @@ python tools/score.py contracts/仓库治理.json     # 发布前的门
 1. ~~冻结契约 schema v1.0~~（已冻结，见 [`docs/契约规范.md`](docs/契约规范.md)）
 2. ~~评分脚本拆成独立公共评分引擎~~（已完成：`wvc/`，零依赖）
 3. ~~用框架治理这个仓库本身~~（已完成：8 条反证 + [`contracts/仓库治理.json`](contracts/仓库治理.json)）
-4. **基准测试集 + 反例库**：现在 8 条反证覆盖核心失败模式，还缺四类判据的边角
-   （cmd 超时/编码、file 编码、links 中文锚点、manual 假证据）
+4. ~~基准测试集 + 反例库~~（已完成：41 条失败模式，`tools/benchmark.py`；
+   每条都用 `TestLoadBearing` 验证过"摘掉修复就会红"）
 5. 再做 2 个非会计职业模板（教培已有雏形，缺工程验收）
 6. 标准化四角色协议：谁决策、谁建议、谁抽取、谁拦截、谁解释、冲突谁优先
 7. 多参考实现：单人本地版 / 小团队协作版 / 企业嵌入版，共享契约与评分

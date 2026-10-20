@@ -11,4 +11,4 @@
 from . import checks, contract, score
 
 __all__ = ["checks", "contract", "score"]
-__version__ = "1.0.0"
+__version__ = "1.1.0"

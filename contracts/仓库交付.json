@@ -116,6 +116,15 @@
           "kind": "cmd",
           "run": "{python} -m unittest discover -s tests -t . -q",
           "expect": { "exit": 0 }
+        },
+        {
+          "id": "R3-d",
+          "title": "基准集全部符合预期（失败模式有目录）",
+          "why": "只有好路径的测试等于没测；这条盯的是「必须不过」的那些形状会不会被漏过去",
+          "kind": "cmd",
+          "run": "{python} tools/benchmark.py --quiet",
+          "expect": { "exit": 0, "stdout_regex": "基准集 ([1-9]\\d*)/\\1 符合预期" },
+          "blocking": true
         }
       ]
     },

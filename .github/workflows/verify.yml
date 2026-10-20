@@ -31,6 +31,9 @@ jobs:
       - name: 回归钉子
         run: python -m unittest discover -s tests -t . -q
 
+      - name: 基准集（失败模式必须仍然被判红）
+        run: python tools/benchmark.py --quiet
+
       - name: 质量门（仓库交付契约）
         run: python tools/score.py contracts/仓库交付.json
 

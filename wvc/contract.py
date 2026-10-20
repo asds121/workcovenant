@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
 FORMAT = "workcovenant.contract/1"
@@ -22,6 +22,8 @@ KINDS = ("cmd", "file", "links", "manual")
 # `cmd` 的 expect 只认这几个键；写错的键必须报错，不许当没看见。
 EXPECT_KEYS = ("exit", "stdout_contains", "stdout_regex", "stderr_contains")
 WEIGHTS = (1, 2, 3)
+DEFAULT_TIMEOUT = 120
+MAX_TIMEOUT = 600
 
 
 class ContractError(Exception):
@@ -43,6 +45,7 @@ class Criterion:
     contains: str = ""
     min_bytes: int = 0
     evidence: str = ""
+    timeout: int = DEFAULT_TIMEOUT
 
 
 @dataclass(frozen=True)
@@ -191,7 +194,37 @@ def validate(raw: Mapping[str, Any]) -> list[str]:
             mb = c.get("min_bytes", 0)
             if not isinstance(mb, int) or mb < 0:
                 errs.append(f"{cwhere} 的 `min_bytes` 必须是非负整数，实际是 {mb!r}")
+
+            to = c.get("timeout", DEFAULT_TIMEOUT)
+            if isinstance(to, bool) or not isinstance(to, int) or not 1 <= to <= MAX_TIMEOUT:
+                errs.append(f"{cwhere} 的 `timeout` 必须是 1..{MAX_TIMEOUT} 的整数，实际是 {to!r}")
+
+            # 判据只许读仓库内的相对路径。放它读 `..` 或绝对路径，等于让一份契约
+            # 顺手把仓库外面的东西（客户文件、密钥）读进报告。
+            for field in ("path", "evidence"):
+                reason = _escape_reason(c.get(field))
+                if reason:
+                    errs.append(f"{cwhere} 的 `{field}` {reason}")
+            needs = c.get("requires")
+            needs = [] if needs is None else ([needs] if isinstance(needs, str) else needs)
+            if isinstance(needs, list):
+                for n in needs:
+                    reason = _escape_reason(n)
+                    if reason:
+                        errs.append(f"{cwhere} 的 `requires` 里的 {n!r} {reason}")
     return errs
+
+
+def _escape_reason(p: Any) -> str:
+    """返回不合规的理由（空串 = 合规）。"""
+    if not isinstance(p, str) or not p.strip():
+        return ""
+    norm = p.replace("\\", "/")
+    if norm.startswith("/") or re.match(r"^[A-Za-z]:", norm):
+        return "是绝对路径 —— 判据只许读仓库内的相对路径"
+    if ".." in PurePosixPath(norm).parts:
+        return "含 `..` —— 判据只许读仓库内的相对路径"
+    return ""
 
 
 def _as_tuple(v) -> tuple[str, ...]:
@@ -218,6 +251,7 @@ def _build(raw: Mapping[str, Any], source: str) -> Contract:
                 run=c.get("run", ""), expect=dict(c.get("expect", {})),
                 path=c.get("path", ""), contains=c.get("contains", ""),
                 min_bytes=int(c.get("min_bytes", 0)), evidence=c.get("evidence", ""),
+                timeout=int(c.get("timeout", DEFAULT_TIMEOUT)),
             )
             for c in r["criteria"]
         )
