@@ -1,0 +1,97 @@
+{
+  "format": "workcovenant.contract/1",
+  "id": "training-ability",
+  "name": "教培能力契约",
+  "profession": "教培（批改与认证）",
+  "version": "1.0.0",
+  "owner": "workcovenant 维护者",
+  "note": "同一套机制换个职业：判据内容从「凭证/审核」换成「错因/认证」。机制一个字没改 —— 这就是「可迁移」的判据。样例数据在 examples/教培批改/。",
+  "requirements": [
+    {
+      "id": "L1",
+      "title": "每道错题都指得到错因",
+      "verbatim": "「课程变成能力契约包：学习目标、强要求、验收步骤、阻断项、证据、评分。」—— docs/产品内涵.md §8",
+      "loop": [
+        "交一次练习",
+        "机器批改给出错题清单",
+        "每道错题后面跟着一句人话错因，不是只有个红叉"
+      ],
+      "criteria": [
+        {
+          "id": "L1-a",
+          "title": "错题台账在，且不是空壳",
+          "why": "没有台账就没有证据链，认证只能靠嘴",
+          "kind": "file",
+          "path": "examples/教培批改/错题.json",
+          "min_bytes": 300,
+          "blocking": true
+        },
+        {
+          "id": "L1-b",
+          "title": "判错的题必须写错因",
+          "why": "只有红叉的批改是判决书，不是反馈；学习者拿不到下一步",
+          "kind": "cmd",
+          "run": "{python} -c \"import json;d=json.load(open('examples/教培批改/错题.json',encoding='utf-8'));bad=[x['id'] for x in d['items'] if x.get('verdict')=='wrong' and not str(x.get('reason','')).strip()];print('ALL_OK' if not bad else 'BAD:'+','.join(bad))\"",
+          "expect": { "stdout_contains": "ALL_OK" }
+        },
+        {
+          "id": "L1-c",
+          "title": "每条记录三个字段齐全（id / verdict / reason）",
+          "why": "缺字段的记录在汇总时会静默变成 0 分，而没人知道为什么",
+          "kind": "cmd",
+          "run": "{python} -c \"import json;d=json.load(open('examples/教培批改/错题.json',encoding='utf-8'));miss=[x.get('id','?') for x in d['items'] if not all(k in x for k in ('id','verdict','reason'))];print('ALL_OK' if not miss else 'MISSING:'+','.join(miss))\"",
+          "expect": { "stdout_contains": "ALL_OK" }
+        }
+      ]
+    },
+    {
+      "id": "L2",
+      "title": "认证不能自己给自己签",
+      "verbatim": "「教师从讲授者变成契约设计者 + 证据审核者 + 教练。」—— docs/产品内涵.md §8",
+      "loop": [
+        "学习者提交认证申请",
+        "审核者签字",
+        "签字的人必须不是学习者本人"
+      ],
+      "criteria": [
+        {
+          "id": "L2-a",
+          "title": "认证记录里有签字人字段",
+          "why": "没有签字人的认证，等同于自评",
+          "kind": "file",
+          "path": "examples/教培批改/认证记录.json",
+          "contains": "\"signed_by\""
+        },
+        {
+          "id": "L2-b",
+          "title": "签字人 ≠ 学习者",
+          "why": "自证是这套框架最容易烂掉的地方：一放开，所有证据立刻失去意义",
+          "kind": "cmd",
+          "run": "{python} -c \"import json;d=json.load(open('examples/教培批改/认证记录.json',encoding='utf-8'));print('OK' if d.get('signed_by') and d['signed_by']!=d.get('learner') else 'SELF_SIGNED')\"",
+          "expect": { "stdout_contains": "OK" },
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "L3",
+      "title": "学习状态机不许跳步",
+      "verbatim": "「学习状态机：待学 → 练习 → 提交 → 核验 → 认证/锁定。」—— docs/产品内涵.md §8",
+      "loop": [
+        "打开一条学习记录",
+        "看它的状态历史",
+        "每一跳都在，没有从「待学」直接跳到「认证」"
+      ],
+      "criteria": [
+        {
+          "id": "L3-a",
+          "title": "状态历史是完整的五段",
+          "why": "跳步的状态机和没有状态机一样，锁不住任何东西",
+          "kind": "cmd",
+          "run": "{python} -c \"import json;d=json.load(open('examples/教培批改/认证记录.json',encoding='utf-8'));chain=['待学','练习','提交','核验','认证'];h=d.get('state_history',[]);print('OK' if h==chain else 'BAD:'+'>'.join(h))\"",
+          "expect": { "stdout_contains": "OK" }
+        }
+      ]
+    }
+  ]
+}

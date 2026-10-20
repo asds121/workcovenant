@@ -1,0 +1,14 @@
+# 运行产物
+__pycache__/
+*.pyc
+out/
+
+# 编辑器 / 系统
+.workbuddy/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 本地临时
+tmp/
+*.log

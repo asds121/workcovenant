@@ -1,0 +1,158 @@
+{
+  "format": "workcovenant.contract/1",
+  "id": "repo-delivery",
+  "name": "仓库交付契约",
+  "profession": "通用（开源仓库）",
+  "version": "1.0.0",
+  "owner": "workcovenant 维护者",
+  "note": "这份契约的打分对象是这个仓库自己。不是示范用的假数据 —— 它读的是 README、docs、脚本，跑的是真命令。改坏了当场变红。",
+  "requirements": [
+    {
+      "id": "R1",
+      "title": "一眼知道这是什么",
+      "verbatim": "「打开就知道为什么来、期待结果肯定出现。」—— 用户对交付物的总纲（真·简·顺·炼·狠·稳·适）",
+      "loop": [
+        "打开仓库首页",
+        "读前三行，能说出：这是什么、给谁用",
+        "不用点进任何目录，就能看到一条能跑的命令"
+      ],
+      "criteria": [
+        {
+          "id": "R1-a",
+          "title": "README 在，且不是占位文件",
+          "why": "首屏答不出「这是什么」，后面写得再好也没人往下看",
+          "kind": "file",
+          "path": "README.md",
+          "min_bytes": 2500,
+          "blocking": true
+        },
+        {
+          "id": "R1-b",
+          "title": "第一屏有一句能背下来的定位",
+          "why": "定位散在段落里 = 没有定位；必须是独立的一行断言",
+          "kind": "file",
+          "path": "README.md",
+          "contains": "^> \\*\\*一句话\\*\\*",
+          "blocking": true
+        },
+        {
+          "id": "R1-c",
+          "title": "有一节「30 秒」，且写了预期输出",
+          "why": "只给命令不给预期输出，等于让人自己猜跑对了没有",
+          "kind": "file",
+          "path": "README.md",
+          "contains": "^## 30 秒"
+        }
+      ]
+    },
+    {
+      "id": "R2",
+      "title": "每个结论都指得到出处",
+      "verbatim": "「结论必须能指到出处（科目 / 凭证 / 行号）」—— 总纲·真",
+      "loop": [
+        "随便挑 README 里一条主张",
+        "顺着它给的链接/文件名找到那份文档",
+        "在那份文档里找到对应段落，不是 404"
+      ],
+      "criteria": [
+        {
+          "id": "R2-a",
+          "title": "核心文档原文完整（一个字都没删）",
+          "why": "删一段论证就等于改了立场，而读者不会知道",
+          "kind": "file",
+          "path": "docs/产品内涵.md",
+          "min_bytes": 8000,
+          "blocking": true
+        },
+        {
+          "id": "R2-b",
+          "title": "契约规范写明了 format 版本号",
+          "why": "没有版本号的格式会在半年后分裂成方言",
+          "kind": "file",
+          "path": "docs/契约规范.md",
+          "contains": "workcovenant\\.contract/1"
+        },
+        {
+          "id": "R2-c",
+          "title": "README 里每条相对链接都解析得到",
+          "why": "断链的文档比没有文档更坏 —— 它假装有出处",
+          "kind": "links",
+          "path": "README.md"
+        }
+      ]
+    },
+    {
+      "id": "R3",
+      "title": "判据自己咬得住",
+      "verbatim": "「只有打分 → 下次改坏了没人拦；只有测试 → 又退回『测了什么就算做了』。」—— docs/样板间-会计.md §0",
+      "loop": [
+        "把引擎里的一条判定故意改坏",
+        "再跑一次反证脚本",
+        "脚本必须变红并说清哪条没咬住"
+      ],
+      "criteria": [
+        {
+          "id": "R3-a",
+          "title": "本契约自身通过体检",
+          "why": "三段齐全（原话/闭环/判据）+ 有阻断项，才配叫契约",
+          "kind": "cmd",
+          "run": "{python} tools/contract_check.py contracts/仓库交付.json",
+          "expect": { "exit": 0, "stdout_contains": "全部合格" },
+          "blocking": true
+        },
+        {
+          "id": "R3-b",
+          "title": "反证脚本 6 条全部咬住",
+          "why": "一个永远报绿的引擎，比没有引擎更能骗人",
+          "kind": "cmd",
+          "run": "{python} tools/mutation_check.py --quiet",
+          "expect": { "exit": 0, "stdout_regex": "6/6" },
+          "blocking": true
+        },
+        {
+          "id": "R3-c",
+          "title": "引擎自测全过",
+          "why": "打分公式、缺料不算过、阻断一票否决，都得有回归钉子",
+          "kind": "cmd",
+          "run": "{python} -m unittest discover -s tests -t . -q",
+          "expect": { "exit": 0 }
+        }
+      ]
+    },
+    {
+      "id": "S1",
+      "title": "适：新人第一次坐下就能跑出分数",
+      "verbatim": "「打开就知道为什么来、期待结果肯定出现；账套里没有的、他不懂不认同的绝不出现。」—— 总纲·适",
+      "loop": [
+        "在一个干净环境里照着 README 第一节敲命令",
+        "不装任何第三方包",
+        "屏幕上出现分数和结论"
+      ],
+      "criteria": [
+        {
+          "id": "S1-a",
+          "title": "零依赖：只用标准库",
+          "why": "要装三个包才能验收的框架，验收本身就会先被放弃",
+          "kind": "cmd",
+          "run": "{python} -c \"import sys;mods=[m for m in sys.modules if m.startswith('wvc')];print('OK' if not any(m in sys.modules for m in ['requests','yaml','numpy']) else 'BAD')\"",
+          "expect": { "stdout_contains": "OK" }
+        },
+        {
+          "id": "S1-b",
+          "title": "第二份契约（教培）也能跑出分数",
+          "why": "只有会计能跑 = 不是框架，是样板间；换一个职业必须只换判据内容",
+          "kind": "cmd",
+          "run": "{python} tools/score.py contracts/教培-能力契约.json --json",
+          "expect": { "exit": 0, "stdout_contains": "\"exit_code\": 0" }
+        },
+        {
+          "id": "S1-c",
+          "title": "首屏读一遍能回答三个问题（人工留证）",
+          "why": "排版这件事机器判不了「顺不顺」，只能要求人看过并留下结论",
+          "kind": "manual",
+          "evidence": "examples/证据/S1-c.md"
+        }
+      ]
+    }
+  ]
+}

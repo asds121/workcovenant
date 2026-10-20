@@ -1,0 +1,12 @@
+{
+  "format": "workcovenant.example.certification/1",
+  "_note": "样例数据，全部虚构。签字人刻意与学习者不同 —— 这一条是防「自证」的红线。",
+  "learner": "S-001",
+  "ability": "解分式方程（含去分母与验根）",
+  "contract": "contracts/教培-能力契约.json",
+  "state_history": ["待学", "练习", "提交", "核验", "认证"],
+  "signed_by": "teacher-01",
+  "signed_at": "2026-10-20T20:30:00",
+  "evidence": ["examples/教培批改/错题.json"],
+  "note": "两次同类错误都指向同一步（去分母/验根），补练后再提交。"
+}
