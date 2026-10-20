@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import ast
 import re
 import subprocess
 from dataclasses import dataclass
@@ -222,12 +223,33 @@ def scan_tree(root: str | Path) -> ScanResult:
     return res
 
 
+def _diff_path(line: str) -> str:
+    """从 `+++ b/路径` 里取路径。
+
+    中文文件名在 git 默认配置下会被写成 `"b/\\344\\270\\255..."`（八进制转义），
+    直接切片会得到乱码，命中的**归因文件就错了**。
+    这里同时兼容两种形态：命令里加了 `core.quotepath=false`，但读到老仓库时仍可能带引号。
+    """
+    raw = line[4:].strip()
+    if raw == "/dev/null":
+        return "<新增/删除>"
+    if raw.startswith('"') and raw.endswith('"'):
+        try:
+            raw = ast.literal_eval(raw)
+            # git 写的是「八进制转义的 UTF-8 字节」，literal_eval 之后是逐字节的 latin-1，
+            # 要再拼回 UTF-8 才是原来的中文名；失败就保持原样（不是转义形态）。
+            raw = raw.encode("latin-1").decode("utf-8")
+        except (ValueError, SyntaxError, UnicodeEncodeError, UnicodeDecodeError):
+            raw = raw.strip('"')
+    return raw[2:] if raw.startswith("b/") else raw
+
+
 def scan_history(root: str | Path) -> ScanResult:
     """扫**所有**提交的新增行 —— 公开仓库的历史删不干净，只能证明它从来是干净的。"""
     root = Path(root).resolve()
     res = ScanResult()
-    cmd = ["git", "log", "-p", "--all", "--no-color", "--unified=0",
-           "--pretty=format:__WC_COMMIT__%H"]
+    cmd = ["git", "-c", "core.quotepath=false", "log", "-p", "--all", "--no-color",
+           "--unified=0", "--pretty=format:__WC_COMMIT__%H"]
     try:
         raw = subprocess.run(cmd, cwd=str(root), capture_output=True, check=True,
                              timeout=180).stdout.decode("utf-8", "replace")
@@ -241,8 +263,8 @@ def scan_history(root: str | Path) -> ScanResult:
             commit = line[len("__WC_COMMIT__"):][:7]
             res.commits += 1
             continue
-        if line.startswith("+++ b/"):
-            path = line[6:]
+        if line.startswith("+++ "):
+            path = _diff_path(line)
             continue
         if not line.startswith("+") or line.startswith("+++"):
             continue

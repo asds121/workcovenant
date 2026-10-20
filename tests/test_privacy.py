@@ -100,6 +100,21 @@ class TestNoFalseNegative(unittest.TestCase):
             git(repo, "commit", "-qm", "植入")
             self.assertIn("P7", [h.rule_id for h in P.scan_tree(repo).hits])
 
+    def test_历史命中能归因到中文文件名(self):
+        """中文路径在 git 里可能被转义；归因错了等于证据链断了。"""
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d)
+            (repo / "客户名单.md").write_text(f"客户：{FAKE_COMPANY}\n", encoding="utf-8")
+            git(repo, "init", "-q")
+            git(repo, "add", "-A")
+            git(repo, "commit", "-qm", "植入")
+            (repo / "客户名单.md").unlink()
+            git(repo, "add", "-A")
+            git(repo, "commit", "-qm", "删除")
+            hits = P.scan_history(repo).hits
+            self.assertTrue(hits, "历史里的企业名没被抓住")
+            self.assertIn("客户名单.md", hits[0].path, f"归因错了：{hits[0].path}")
+
 
 if __name__ == "__main__":
     unittest.main()
