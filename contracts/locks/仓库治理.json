@@ -1,0 +1,71 @@
+{
+  "format": "workcovenant.lock/1",
+  "contract": "repo-governance",
+  "version": "1.1.0",
+  "criteria": {
+    "G1-a": {
+      "blocking": true,
+      "fp": "sha256:c50b38430e893006"
+    },
+    "G1-b": {
+      "blocking": false,
+      "fp": "sha256:7dc3a65c386e96ee"
+    },
+    "G1-c": {
+      "blocking": false,
+      "fp": "sha256:40a9fa343c9c22ea"
+    },
+    "G1-d": {
+      "blocking": false,
+      "fp": "sha256:c713a258c0e43411"
+    },
+    "G2-a": {
+      "blocking": true,
+      "fp": "sha256:bb6c18e74b8f52f3"
+    },
+    "G2-b": {
+      "blocking": false,
+      "fp": "sha256:8d8f45546b70ea8c"
+    },
+    "G2-c": {
+      "blocking": true,
+      "fp": "sha256:da55bf671255eb97"
+    },
+    "G3-a": {
+      "blocking": true,
+      "fp": "sha256:986237b784ac67b2"
+    },
+    "G3-b": {
+      "blocking": false,
+      "fp": "sha256:b927db1818ea8a91"
+    },
+    "G3-c": {
+      "blocking": false,
+      "fp": "sha256:6e32f0e0d12ee0f4"
+    },
+    "G4-a": {
+      "blocking": true,
+      "fp": "sha256:2b31fc8f06a9e068"
+    },
+    "G4-b": {
+      "blocking": true,
+      "fp": "sha256:653883d5432ec576"
+    },
+    "G4-c": {
+      "blocking": true,
+      "fp": "sha256:bb9adf5f468a7ec0"
+    },
+    "G5-a": {
+      "blocking": true,
+      "fp": "sha256:f7401d9854ba72b0"
+    },
+    "G5-b": {
+      "blocking": true,
+      "fp": "sha256:1475a58df7824e9a"
+    },
+    "G5-c": {
+      "blocking": false,
+      "fp": "sha256:02e33f11c04a8c6f"
+    }
+  }
+}

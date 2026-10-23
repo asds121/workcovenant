@@ -3,7 +3,7 @@
   "id": "repo-governance",
   "name": "仓库治理契约",
   "profession": "仓库治理（公开仓库）",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "owner": "workcovenant 维护者",
   "note": "这是发布前的门：高质量 / 可信 / 合规 / 无敏感信息，四条任一不过就不发。它和「仓库交付契约」分工不同 —— 交付契约管「写得好不好」，本契约管「能不能公开」。判据全部跑真命令，没有一条靠自觉。",
   "requirements": [
@@ -73,10 +73,10 @@
         },
         {
           "id": "G2-b",
-          "title": "三份契约全部通过体检（三段齐全 + 有阻断项）",
+          "title": "四份契约全部通过体检（三段齐全 + 有阻断项）",
           "why": "契约可以 100 分却漏验关键动作；体检先回答「该验的验了没有」",
           "kind": "cmd",
-          "run": "{python} tools/contract_check.py contracts/仓库交付.json contracts/仓库治理.json contracts/教培-能力契约.json",
+          "run": "{python} tools/contract_check.py contracts/仓库交付.json contracts/仓库治理.json contracts/教培-能力契约.json contracts/工单质检.json",
           "expect": { "exit": 0, "stdout_contains": "全部合格" }
         },
         {
@@ -165,6 +165,44 @@
           "run": "{python} -m unittest tests.test_privacy -q",
           "expect": { "exit": 0 },
           "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "G5",
+      "title": "判据不许被悄悄放松",
+      "verbatim": "「没有为了让它绿而放宽判据 —— 放宽可以，但要在 PR 里说清理由。」—— docs/仓库治理.md §5",
+      "loop": [
+        "跑一次锁检查，四份契约都要有基线",
+        "把一条阻断判据降级成普通判据",
+        "再跑一次：锁必须红，并指到那条判据"
+      ],
+      "criteria": [
+        {
+          "id": "G5-a",
+          "title": "每份契约与锁一致，且锁文件都在",
+          "why": "把 blocking 改成 false 不会让任何判据变红，只会让报告变好看 —— 没有基线，「被禁用」根本无从发现",
+          "kind": "cmd",
+          "run": "{python} tools/lock_check.py --check",
+          "expect": { "exit": 0, "stdout_contains": "全部一致" },
+          "blocking": true
+        },
+        {
+          "id": "G5-b",
+          "title": "锁真的咬得住（降级 / 改内容 / 删判据）",
+          "why": "只会说「一致」的锁等于没锁；必须证明它对三类放松都会红",
+          "kind": "cmd",
+          "run": "{python} -m unittest tests.test_lock -q",
+          "expect": { "exit": 0 },
+          "blocking": true
+        },
+        {
+          "id": "G5-c",
+          "title": "字段名写错不许静默通过",
+          "why": "`blockng: true` 会被静默忽略：判据照常加载、照常显示，只是再也不阻断",
+          "kind": "cmd",
+          "run": "{python} -c \"import sys;sys.path.insert(0,'.');from wvc import contract as C;raw={'format':C.FORMAT,'id':'x','name':'x','profession':'x','version':'1.0.0','owner':'x','requirements':[{'id':'R','title':'t','verbatim':'v','loop':['l'],'criteria':[{'id':'c','title':'t','why':'w','kind':'cmd','run':'x','blockng':True}]}]};e=C.validate(raw);print('OK' if any('blockng' in x for x in e) else 'BAD:'+str(e))\"",
+          "expect": { "stdout_contains": "OK" }
         }
       ]
     }

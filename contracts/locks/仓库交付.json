@@ -1,0 +1,63 @@
+{
+  "format": "workcovenant.lock/1",
+  "contract": "repo-delivery",
+  "version": "1.1.0",
+  "criteria": {
+    "R1-a": {
+      "blocking": true,
+      "fp": "sha256:7b7128391f494a5d"
+    },
+    "R1-b": {
+      "blocking": true,
+      "fp": "sha256:d6751eafc900390e"
+    },
+    "R1-c": {
+      "blocking": false,
+      "fp": "sha256:922a734d306405ea"
+    },
+    "R2-a": {
+      "blocking": true,
+      "fp": "sha256:dea67bcf09975760"
+    },
+    "R2-b": {
+      "blocking": false,
+      "fp": "sha256:dca0848188a4d61d"
+    },
+    "R2-c": {
+      "blocking": false,
+      "fp": "sha256:ad5f4243f4607dcf"
+    },
+    "R3-a": {
+      "blocking": true,
+      "fp": "sha256:743b072019a1f8ee"
+    },
+    "R3-b": {
+      "blocking": true,
+      "fp": "sha256:cf0f7484fedd2803"
+    },
+    "R3-c": {
+      "blocking": false,
+      "fp": "sha256:e55ae55a7f8b029b"
+    },
+    "R3-d": {
+      "blocking": true,
+      "fp": "sha256:704cea4dca97da46"
+    },
+    "S1-a": {
+      "blocking": false,
+      "fp": "sha256:4268cd42f1442fa9"
+    },
+    "S1-b": {
+      "blocking": false,
+      "fp": "sha256:b3ee466f5a82c18a"
+    },
+    "S1-d": {
+      "blocking": false,
+      "fp": "sha256:c29eda57b066332c"
+    },
+    "S1-c": {
+      "blocking": false,
+      "fp": "sha256:af34cf7ce2d61e57"
+    }
+  }
+}

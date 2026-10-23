@@ -1,0 +1,85 @@
+{
+  "format": "workcovenant.example.tickets/1",
+  "_note": "故意写坏的 6 条：一条只犯一个错，好让每条判据都能被单独证明。它们不进契约的默认路径 —— 判据咬不咬得住，靠 tests/benchmark_data.py 喂它们。",
+  "items": [
+    {
+      "id": "B-001",
+      "order_id": "",
+      "contact": "demo-contact-101",
+      "category": "物流",
+      "text": "客户问件到哪了，已回复。",
+      "risk": "normal",
+      "opened_at": "2026-10-20T09:00:00",
+      "responded_at": "2026-10-20T09:30:00",
+      "author_source": "proxy:colleague",
+      "reviewed_by": "manager-01",
+      "reviewer_source": "human:manager"
+    },
+    {
+      "id": "B-002",
+      "order_id": "O-9102",
+      "contact": "demo-contact-102",
+      "category": "退款咨询",
+      "text": "这边可以保证退款，请放心。",
+      "risk": "normal",
+      "opened_at": "2026-10-20T10:00:00",
+      "responded_at": "2026-10-20T10:20:00",
+      "author_source": "proxy:colleague",
+      "reviewed_by": "manager-01",
+      "reviewer_source": "human:manager"
+    },
+    {
+      "id": "B-003",
+      "order_id": "O-9103",
+      "contact": "demo-contact-103",
+      "category": "投诉",
+      "text": "客户投诉，已受理。",
+      "risk": "normal",
+      "opened_at": "2026-10-20T09:00:00",
+      "responded_at": "2026-10-21T15:00:00",
+      "author_source": "proxy:colleague",
+      "reviewed_by": "manager-01",
+      "reviewer_source": "human:manager"
+    },
+    {
+      "id": "B-004",
+      "order_id": "O-9104",
+      "contact": "demo-contact-104",
+      "category": "账号异常",
+      "text": "客户反馈登录异常，已记录。",
+      "risk": "high",
+      "opened_at": "2026-10-20T11:00:00",
+      "responded_at": "2026-10-20T11:30:00",
+      "author_source": "proxy:colleague",
+      "reviewed_by": "manager-01",
+      "reviewer_source": "human:manager"
+    },
+    {
+      "id": "B-005",
+      "order_id": "O-9105",
+      "contact": "demo-contact-105",
+      "category": "补偿",
+      "text": "客户接受补偿方案。",
+      "risk": "normal",
+      "opened_at": "2026-10-20T12:00:00",
+      "responded_at": "2026-10-20T12:40:00",
+      "author_source": "proxy:colleague",
+      "reviewed_by": "colleague-02",
+      "reviewer_source": "proxy:colleague"
+    },
+    {
+      "id": "B-006",
+      "order_id": "O-9106",
+      "contact": "demo-contact-106",
+      "contact_human": "demo-contact-996",
+      "category": "换货",
+      "text": "客户要求换货。",
+      "risk": "normal",
+      "opened_at": "2026-10-20T13:00:00",
+      "responded_at": "2026-10-20T13:20:00",
+      "author_source": "proxy:colleague",
+      "reviewed_by": "manager-02",
+      "reviewer_source": "human:manager"
+    }
+  ]
+}

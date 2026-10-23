@@ -7,13 +7,14 @@
 八条反证，每条都改一处、必须当场变红；改不红就说明那一类错误会漏过去，
 漏过去的错误最后会以"验收通过了但线上是坏的"的形式出现在用户面前。
 
-后两条专门盯**敏感信息扫描器**：规则被改瞎、真密钥被植入，
-两种都必须当场说破 —— 扫描器失灵时给出的"干净"，是最贵的假报告。
+后四条专门盯两处最贵的失灵：
+- 敏感信息扫描器（规则被改瞎、真密钥被植入）—— 扫描器失灵时给出的"干净"，是最贵的假报告；
+- 契约的门槛（阻断被降级、字段名写错）—— 门槛失灵时给出的"通过"，是最贵的假绿。
 
     python tools/mutation_check.py           # 逐条说话
     python tools/mutation_check.py --quiet   # 只留结论（给契约判据调用）
 
-退出码：0 八条全咬住 / 1 有漏网的。
+退出码：0 十条全咬住 / 1 有漏网的。
 """
 from __future__ import annotations
 
@@ -28,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from wvc import contract as C      # noqa: E402
+from wvc import lock as L          # noqa: E402
 from wvc import privacy as P       # noqa: E402
 from wvc import score as S         # noqa: E402
 
@@ -176,6 +178,31 @@ def m6_broken_contract(ws: Workspace) -> str:
     return "缺字段 / id 重复 → 拒绝加载并说清位置"
 
 
+def m9_blocking_relaxed(ws: Workspace) -> str:
+    """把阻断判据降级成普通判据 —— 锁必须当场说话，而且要点到那条判据。"""
+    raw = copy.deepcopy(BASE)
+    lock = L.make(C.load(_write(ws, raw)))
+    raw["requirements"][0]["criteria"][0]["blocking"] = False
+    errs, _ = L.verify(C.load(_write(ws, raw)), lock, changelog="")
+    assert errs, "阻断被降级，锁居然没说话 —— 这条门槛等于不存在"
+    assert "R1-a" in errs[0], f"报错没指到判据：{errs[0]}"
+    assert "升版本" in errs[0], f"报错没说清怎么补救：{errs[0]}"
+    return "阻断降级 → 锁红，指到 R1-a 并说明要升版本"
+
+
+def m10_typo_field(ws: Workspace) -> str:
+    """把 `blocking` 写成 `blockng` —— 必须拒绝加载，不许静默变成非阻断。"""
+    raw = copy.deepcopy(BASE)
+    raw["requirements"][0]["criteria"][0]["blockng"] = True
+    try:
+        C.load(_write(ws, raw))
+    except C.ContractError as exc:
+        assert "blockng" in str(exc), "报错里没点名那个写错的字段"
+    else:
+        raise AssertionError("字段名写错竟然加载成功 —— 那条判据等于从来没阻断过")
+    return "字段名写错 → 拒绝加载并点名 blockng"
+
+
 def _write(ws: Workspace, raw: dict) -> Path:
     p = ws.root / "_broken.json"
     p.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
@@ -211,6 +238,8 @@ MUTATIONS = [
     ("M6 契约坏了", m6_broken_contract),
     ("M7 规则改瞎", m7_blind_rule),
     ("M8 植入密钥", m8_planted_secret),
+    ("M9 阻断降级", m9_blocking_relaxed),
+    ("M10 字段名写错", m10_typo_field),
 ]
 
 

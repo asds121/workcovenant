@@ -23,24 +23,25 @@ python tools/score.py contracts/仓库交付.json
 **预期输出**（这就是"可验证"的样子，不是"应该能跑"）：
 
 ```text
-WorkCovenant 契约打分 · 仓库交付契约 1.0.0 · 通用（开源仓库）
-4 条需求 · 13 条判据 · 13 过 / 0 没过 / 0 没验
+WorkCovenant 契约打分 · 仓库交付契约 1.1.0 · 通用（开源仓库）
+4 条需求 · 14 条判据 · 14 过 / 0 没过 / 0 没验
 ==============================================================================
 R1   一眼知道这是什么　3/3　做到
    ✅ 阻断·R1-a     README 在，且不是占位文件
-              README.md 8.4 KB
+              README.md 12.7 KB
 ...
 按需求：R1 100%　R2 100%　R3 100%　S1 100%
 总分 100 / 100
 结论：通过
 ```
 
-五条命令，五种"不体面"都能当场暴露：
+六条命令，六种"不体面"都能当场暴露：
 
 ```bash
 python tools/contract_check.py contracts/*.json   # 契约自己写全了没有
-python tools/benchmark.py                         # 41 种失败模式，引擎还认不认得出来
-python tools/mutation_check.py                    # 引擎咬不咬得住（8 条反证）
+python tools/benchmark.py                         # 55 种失败模式，引擎还认不认得出来
+python tools/mutation_check.py                    # 引擎咬不咬得住（10 条反证）
+python tools/lock_check.py --check                # 门槛有没有被悄悄调松
 python tools/privacy_scan.py --tree --history     # 有没有敏感信息（含历史）
 python -m unittest discover -s tests -t . -q      # 判定口径的回归钉子
 ```
@@ -49,6 +50,12 @@ python -m unittest discover -s tests -t . -q      # 判定口径的回归钉子
 
 ```bash
 python tools/score.py contracts/教培-能力契约.json
+```
+
+换一种数据结构 —— 不是文件，是一批记录：
+
+```bash
+python tools/score.py contracts/工单质检.json       # 7 条 data 判据，规则写在契约里
 ```
 
 ---
@@ -87,16 +94,26 @@ WorkCovenant 只做一件事：**把"做到"写成一段能一口气走完的动
 
 ---
 
-## 四角色：单人背后的数字团队
+## 四角色 + 一个学习角色：单人背后的数字团队
 
 | 角色 | 像什么 | 只有他能做 | **绝不许做** |
 |---|---|---|---|
 | **你** | 决策者 / 老板 | 定方向、确认结论、最终签字 | 不做重复劳动、不盯流程 |
 | **机器实习生** | 下属 | 抽取、补空、批量核对 | **不覆盖人工值**、不做审核 |
 | **数字流程经理** | 流程主管 | 拦错、锁定、留痕、评分 | **不做业务判断**、不替人决策 |
-| **助理呈现层** | 好上司 / 教练 | 解释、提醒、引导、复盘 | **不命令**、不训导、不替人拍板 |
+| **助理呈现层** | 好上司 / 教练 | 解释、提醒、引导、对人复盘 | **不命令**、不训导、不替人拍板 |
 
 一句能记住的分工：**实习生补空，经理拦错，助理解释，你签字。**
+
+**再加一个只学习、不判定的角色：同事。** 它把每一轮的漏判与误判，盘成下一版判据草案 ——
+这叫学习权，只有它有。它不签、不否、不填、不解释，所以不进上面那张判定表；
+而草案也不能自己生效：要人触发、升版本、写 CHANGELOG，否则它就绕过了锁
+（[`docs/四角色协议.md`](docs/四角色协议.md) §1.2）。判定权四档，学习权一档 —— 这就是"四"和"五"不矛盾的地方。
+
+还有一句不那么好听的：**机器是你的同源代理，不是第二双眼睛。**
+它和你读同一批数据、用同一套判断长出来 —— 能替你查算错、查漏字段、查前后不一致，
+不能替你判"这个判断对不对"。关键决策要有非同源复核；没有，就在记录上写明
+"这里没有人复核过"，而不是假装复核过了（[`docs/四角色协议.md`](docs/四角色协议.md) §2.5）。
 
 精髓不在"分工"，在**人机互训**：你提交的结论反哺机器，机器再把空补回来 ——
 用户既被"好上司"带，又在管理"机器实习生"。管理岗的经验就是这么长出来的。
@@ -139,8 +156,25 @@ WorkCovenant 只做一件事：**把"做到"写成一段能一口气走完的动
 }
 ```
 
-判据只有四种可执行形态（`cmd` / `file` / `links` / `manual`），全字段说明见
+判据有五种可执行形态（`cmd` / `file` / `links` / `manual` / `data`），全字段说明见
 [`docs/契约规范.md`](docs/契约规范.md)。
+
+`data` 那一种是给"一批记录"用的：规则写在契约里，看得见，不藏在脚本里 ——
+
+```json
+{
+  "id": "T7-a",
+  "title": "有 reviewed_by 时 author_source ≠ reviewer_source",
+  "why": "同一份数据训练出来的影子给自己复核，只会把错误复核成一致",
+  "kind": "data",
+  "path": "examples/工单质检/tickets.json",
+  "assert": [
+    { "when": { "field": "reviewed_by", "nonempty": true },
+      "compare": { "pairs": [["author_source", "reviewer_source"]], "expect": "ne" } }
+  ],
+  "blocking": true
+}
+```
 
 **`why` 是必填的** —— 每条判据都要说清守的是哪根红线。写不出 `why` 的判据，
 就是"为了测而测"，它只会消耗维护成本，不会拦住任何东西。
@@ -187,14 +221,15 @@ WorkCovenant 只做一件事：**把"做到"写成一段能一口气走完的动
 
 **这个框架的第一个用户是这个仓库自己。** 一份连自己都管不住的框架，没有资格管别人的工作。
 
-治理契约 [`contracts/仓库治理.json`](contracts/仓库治理.json) 盯四件事，任一不过就不发布：
+治理契约 [`contracts/仓库治理.json`](contracts/仓库治理.json) 盯五件事，任一不过就不发布：
 
 | 维度 | 防的是什么 | 怎么判 |
 |---|---|---|
 | **高质量** | 缺文件、占位实现、巨型文件 | 八份必交文件齐全且够长 · 代码里没有 `TODO`/`NotImplemented` · 单文件 py ≤20KB |
-| **可信** | 分数不可复现、契约漏验、质量门自己不及格 | 同一契约两次跑**判定逐格相同** · 三份契约全过体检 · 交付契约本身 100 分 |
+| **可信** | 分数不可复现、契约漏验、质量门自己不及格 | 同一契约两次跑**判定逐格相同** · 四份契约全过体检 · 交付契约本身 100 分 |
 | **合规** | 许可不明、归属缺失、没有贡献/漏洞渠道 | LICENSE 是 Apache-2.0 全文 · NOTICE 写明归属 · CONTRIBUTING 给了验收命令 |
 | **无敏感信息** | 客户名、税号、账号、密钥、本机路径 | 工作树 0 命中 · **git 历史 0 命中** · 植入假密钥必须被抓住 |
+| **门槛不变形** | 阻断被悄悄降级、字段名写错导致判据静默失效 | 四份契约与锁一致 · 降级必须升版本并写 CHANGELOG · `blockng` 写错直接拒绝加载 |
 
 ```bash
 python tools/score.py contracts/仓库治理.json     # 发布前的门
@@ -204,6 +239,11 @@ python tools/score.py contracts/仓库治理.json     # 发布前的门
 工作树、历史、以及"扫描器自己会不会失灵"（规则自带正例与反例，自测不过就退出码 3，
 `3` 表示扫描器坏了，这时"干净"两个字毫无意义）。
 
+第五行是后加的，起因写在 [`docs/评审-同事契约v1.1.md`](docs/评审-同事契约v1.1.md) §2.1：
+**把 `blocking` 改成 `false`，不会有任何判据变红，只会让报告变好看。**
+所以每份契约带一份基线（`contracts/locks/`），同版本下改任何一条判据都红；
+升版本可以改，但删掉或降级的判据必须在 CHANGELOG 里点到名。
+
 细节、威胁模型与已知局限见 [`docs/仓库治理.md`](docs/仓库治理.md)。
 
 ---
@@ -212,14 +252,17 @@ python tools/score.py contracts/仓库治理.json     # 发布前的门
 
 **有**（框架层，全部可跑）：
 
-- 契约 schema v1.0 + 加载与全量校验（[`wvc/contract.py`](wvc/contract.py)）
-- 判据执行器：三档结果、缺料不算过、交付物缺失算红（[`wvc/checks.py`](wvc/checks.py)）
+- 契约 schema v1.0 + 加载与全量校验：三层字段白名单、绝对路径拒绝（[`wvc/contract.py`](wvc/contract.py)）
+- 判据执行器：五种形态、三档结果、缺料不算过、交付物缺失算红（[`wvc/checks.py`](wvc/checks.py)）
 - 打分与报告（[`wvc/score.py`](wvc/score.py)）
+- 锁：判定指纹 + 基线校验，阻断不许被悄悄降级（[`wvc/lock.py`](wvc/lock.py)、
+  [`tools/lock_check.py`](tools/lock_check.py)）
 - 敏感信息扫描器：8 条规则，每条自带正反例，支持扫 git 历史（[`wvc/privacy.py`](wvc/privacy.py)）
-- 三份**真跑**的契约：[`contracts/仓库交付.json`](contracts/仓库交付.json)（质量门）、
+- 四份**真跑**的契约：[`contracts/仓库交付.json`](contracts/仓库交付.json)（质量门）、
   [`contracts/仓库治理.json`](contracts/仓库治理.json)（发布门）、
-  [`contracts/教培-能力契约.json`](contracts/教培-能力契约.json)（证明可迁移）
-- 反证脚本（8 条）、基准集（41 条失败模式）、可重放校验、回归钉子（[`tools/`](tools/)、[`tests/`](tests/)）
+  [`contracts/教培-能力契约.json`](contracts/教培-能力契约.json)（换职业）、
+  [`contracts/工单质检.json`](contracts/工单质检.json)（换数据结构：一批记录）
+- 反证脚本（10 条）、基准集（55 条失败模式）、可重放校验、回归钉子（[`tools/`](tools/)、[`tests/`](tests/)）
 - 合规文件：[`LICENSE`](LICENSE)、[`NOTICE`](NOTICE)、[`CONTRIBUTING.md`](CONTRIBUTING.md)、
   [`SECURITY.md`](SECURITY.md)、[`CHANGELOG.md`](CHANGELOG.md)
 - 核心文档原文：[`docs/产品内涵.md`](docs/产品内涵.md)（讨论过程，不改）
@@ -246,11 +289,12 @@ python tools/score.py contracts/仓库治理.json     # 发布前的门
 
 1. ~~冻结契约 schema v1.0~~（已冻结，见 [`docs/契约规范.md`](docs/契约规范.md)）
 2. ~~评分脚本拆成独立公共评分引擎~~（已完成：`wvc/`，零依赖）
-3. ~~用框架治理这个仓库本身~~（已完成：8 条反证 + [`contracts/仓库治理.json`](contracts/仓库治理.json)）
-4. ~~基准测试集 + 反例库~~（已完成：41 条失败模式，`tools/benchmark.py`；
+3. ~~用框架治理这个仓库本身~~（已完成：10 条反证 + [`contracts/仓库治理.json`](contracts/仓库治理.json)）
+4. ~~基准测试集 + 反例库~~（已完成：55 条失败模式，`tools/benchmark.py`；
    每条都用 `TestLoadBearing` 验证过"摘掉修复就会红"）
-5. 再做 2 个非会计职业模板（教培已有雏形，缺工程验收）
-6. 标准化四角色协议：谁决策、谁建议、谁抽取、谁拦截、谁解释、冲突谁优先
+5. ~~再做 2 个非会计职业模板~~（已完成：教培（换职业）+ 工单质检（换数据结构）；工程验收不在本轮）
+6. ~~标准化四角色协议~~（已完成：[`docs/四角色协议.md`](docs/四角色协议.md) v0.2 ——
+   权力位、同源复核、加角色前的六道准入）
 7. 多参考实现：单人本地版 / 小团队协作版 / 企业嵌入版，共享契约与评分
 
 ---

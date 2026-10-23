@@ -25,7 +25,8 @@ GROUP_NAME = {
     "file": "file：看文件（在不在 / 够不够大 / 内容对不对 / CRLF）",
     "links": "links：查链接（断链 / 标题 / 空格 / 编码 / 代码块）",
     "manual": "manual：人工证据（✅ / ❌ / 没证据 / 空文件 / BOM）",
-    "contract": "contract：契约校验（缺字段 / 重复 / 逃逸 / 越界）",
+    "data": "data：一批记录（必填 / 禁词 / 超时 / 条件 / 同源 / 坏 JSON）",
+    "contract": "contract：契约校验（缺字段 / 重复 / 逃逸 / 越界 / 字段名写错）",
     "score": "score：打分口径（等权 / 退出码 / 阻断否决）",
 }
 

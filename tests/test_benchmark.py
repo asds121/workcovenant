@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """基准集的回归钉子 —— 每条用例的期望值都钉死。
 
-用例本体在 `tests/benchmark_cases.py`；这里只负责"少了/错了就红"。
+用例本体在 `tests/benchmark_cases.py`（六组）与 `tests/benchmark_data.py`（data 组）；
+这里只负责"少了/错了就红"。
 """
 from __future__ import annotations
 
@@ -23,10 +24,10 @@ class TestBenchmark(unittest.TestCase):
         bad = [o.detail for o in B.run_all() if not o.ok]
         self.assertEqual(bad, [], "\n".join(bad))
 
-    def test_六组都覆盖到(self):
-        """四类判据 + 契约校验 + 打分口径；少一组就等于有一类错误没人管。"""
+    def test_七组都覆盖到(self):
+        """五类判据 + 契约校验 + 打分口径；少一组就等于有一类错误没人管。"""
         self.assertEqual({c.group for c in B.CASES},
-                         {"cmd", "file", "links", "manual", "contract", "score"})
+                         {"cmd", "file", "links", "manual", "data", "contract", "score"})
 
     def test_用例id不重复(self):
         ids = [c.id for c in B.CASES]

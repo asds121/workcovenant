@@ -17,12 +17,14 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -57,7 +59,8 @@ def _dispatch(c: Criterion, root: Path) -> tuple[str, str]:
     for need in c.requires:
         if not (root / need).exists():
             return SKIP, f"缺料：{need} 不在 —— 这条没验，不算过"
-    return {"cmd": _cmd, "file": _file, "links": _links, "manual": _manual}[c.kind](c, root)
+    return {"cmd": _cmd, "file": _file, "links": _links, "manual": _manual,
+            "data": _data}[c.kind](c, root)
 
 
 # ------------------------------------------------------------------ cmd
@@ -157,6 +160,116 @@ def _manual(c: Criterion, root: Path) -> tuple[str, str]:
     if not first:
         first = next((ln.strip() for ln in text.splitlines() if "✅" in ln), "")
     return PASS, f"证据：{first[:80]}"
+
+
+# ------------------------------------------------------------------ data
+def _data(c: Criterion, root: Path) -> tuple[str, str]:
+    """一批记录 × 一组子句。规则写在契约里，不藏在脚本里。
+
+    为什么不复用 `cmd`：`cmd` 也能读 JSON，但规则会躲进那一行 Python 里 ——
+    契约上只剩一句"跑个脚本"，读的人看不出到底在验什么。`data` 保证
+    **看契约就知道判什么**，所以子句只有四种形状，多一个都不认。
+    """
+    p = root / c.path
+    if not p.is_file():
+        return FAIL, f"{c.path} 不存在 —— 该交的数据没交"
+    try:
+        raw = json.loads(_decode(p.read_bytes()))
+    except json.JSONDecodeError as exc:
+        return FAIL, f"{c.path} 不是合法 JSON：第 {exc.lineno} 行第 {exc.colno} 列"
+    records = raw.get("items") if isinstance(raw, dict) else raw
+    if not isinstance(records, list):
+        return FAIL, f'{c.path} 里没有记录数组（要 list，或 {{"items": [...]}}）'
+
+    bad: list[str] = []
+    for i, rec in enumerate(records, 1):
+        if not isinstance(rec, dict):
+            bad.append(f"第 {i} 条不是对象")
+            continue
+        for clause in c.asserts:
+            if not _when_ok(rec, clause.get("when")):
+                continue
+            msg = _clause_bad(rec, clause)
+            if msg:
+                bad.append(f"{_rid(rec, i)} {msg}")
+    if bad:
+        more = f"（另有 {len(bad) - 3} 处）" if len(bad) > 3 else ""
+        return FAIL, f"{len(bad)} 处不合格：{'；'.join(bad[:3])}{more}"
+    return PASS, f"{len(records)} 条记录 · {len(c.asserts)} 个子句全部成立"
+
+
+def _clause_bad(rec: dict, clause: dict) -> str:
+    """返回一处不合格的说明（空串 = 这条记录在这个子句下合格）。"""
+    if "required" in clause:
+        miss = [f for f in clause["required"] if not _filled(rec.get(f))]
+        return f"缺 {', '.join(miss)}" if miss else ""
+    if "forbidden" in clause:
+        spec = clause["forbidden"]
+        for f in spec["fields"]:
+            text = rec.get(f)
+            if not isinstance(text, str):
+                continue
+            for term in spec["terms"]:
+                if term in text:
+                    return f"{f} 里有禁词「{term}」"
+        return ""
+    if "compare" in clause:
+        spec = clause["compare"]
+        for a, b in spec["pairs"]:
+            va, vb = rec.get(a), rec.get(b)
+            if not _filled(va) or not _filled(vb):
+                return f"{a}/{b} 有一个为空，无法比对"
+            if spec["expect"] == "ne" and _same(va, vb):
+                return f"{a} 与 {b} 相同（{va}），这里必须不同"
+            if spec["expect"] == "eq" and not _same(va, vb):
+                return f"{a}={va} 与 {b}={vb} 不一致，这里必须相等"
+        return ""
+    spec = clause["sla"]
+    start, end = rec.get(spec["start"]), rec.get(spec["end"])
+    if not _filled(start) or not _filled(end):
+        return f"缺 {spec['start']}/{spec['end']}，无法证明未超时"
+    try:
+        t0, t1 = datetime.fromisoformat(str(start)), datetime.fromisoformat(str(end))
+        hours = (t1 - t0).total_seconds() / 3600
+    except (ValueError, TypeError):
+        return "时间字段不是 ISO 8601，算不出间隔"
+    if hours < 0:
+        return f"{spec['end']} 早于 {spec['start']}，记录本身是坏的"
+    if hours > spec["max_hours"]:
+        return f"{hours:.1f}h > {spec['max_hours']}h"
+    return ""
+
+
+def _when_ok(rec: dict, when: dict | None) -> bool:
+    if not when:
+        return True
+    v = rec.get(when["field"])
+    if "nonempty" in when:
+        return _filled(v)
+    return any(_same(v, want) for want in when["in"])
+
+
+def _rid(rec: dict, i: int) -> str:
+    rid = rec.get("id")
+    return rid if isinstance(rid, str) and rid.strip() else f"第 {i} 条"
+
+
+def _filled(v) -> bool:
+    """`0` / `false` 是值，不是空 —— 只有 None、空串、空容器才算缺。"""
+    if v is None:
+        return False
+    if isinstance(v, str):
+        return bool(v.strip())
+    if isinstance(v, (list, dict)):
+        return bool(v)
+    return True
+
+
+def _same(a, b) -> bool:
+    """`1` 和 `True` 在 Python 里相等，但在数据里是两个意思。"""
+    if isinstance(a, bool) != isinstance(b, bool):
+        return False
+    return a == b
 
 
 # ------------------------------------------------------------------ 小工具

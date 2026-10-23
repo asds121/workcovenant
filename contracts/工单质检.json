@@ -1,0 +1,189 @@
+{
+  "format": "workcovenant.contract/1",
+  "id": "ticket-qc",
+  "name": "客服工单质检契约",
+  "profession": "客服（工单质检）",
+  "version": "1.0.0",
+  "owner": "workcovenant 维护者",
+  "note": "第三个职业模板：机制一个字没改，数据从「凭证」「错题」换成「工单」。七条判据全是 data 类 —— 规则写在契约里看得见，不藏在脚本里。样例数据 examples/工单质检/tickets.json（全合规）；故意写坏的 6 条在 tickets-broken.json，由 tests/benchmark_data.py 逐条喂给判据。",
+  "requirements": [
+    {
+      "id": "T1",
+      "title": "每条工单都能指到具体一笔订单",
+      "verbatim": "「缺订单号」—— docs/评审-同事契约v1.1.md §3.2（场景 2）",
+      "loop": [
+        "打开工单台账",
+        "逐条看单号、联系方式、分类是否都在",
+        "缺任何一项，这条工单的质检结论就无从谈起"
+      ],
+      "criteria": [
+        {
+          "id": "T1-a",
+          "title": "id / order_id / contact / category 都不许空",
+          "why": "没有单号的工单，结论指不到任何一笔业务 —— 那正是「结论要能指到出处」的第一步",
+          "kind": "data",
+          "path": "examples/工单质检/tickets.json",
+          "assert": [
+            { "required": ["id", "order_id", "contact", "category"] }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "对客户的话里不许出现承诺性禁词",
+      "verbatim": "「含禁词“保证退款”」—— docs/评审-同事契约v1.1.md §3.2（场景 3）",
+      "loop": [
+        "取工单正文",
+        "逐条过禁词表",
+        "命中一个就红 —— 这类词一旦发出去就是承诺，事后只能用钱兑现"
+      ],
+      "criteria": [
+        {
+          "id": "T2-a",
+          "title": "正文不含 保证退款 / 绝对 / 删除记录",
+          "why": "禁词不是文风问题，是法律风险：说出去的话，公司要认",
+          "kind": "data",
+          "path": "examples/工单质检/tickets.json",
+          "assert": [
+            {
+              "forbidden": {
+                "fields": ["text"],
+                "terms": ["保证退款", "绝对", "删除记录"]
+              }
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "首次响应不超过 24 小时",
+      "verbatim": "「响应超时」—— docs/评审-同事契约v1.1.md §3.2（场景 4）",
+      "loop": [
+        "取开单时间与首次响应时间",
+        "算间隔",
+        "超过 24 小时就红；时间字段缺失也算红 —— 证明不了，就是没做到"
+      ],
+      "criteria": [
+        {
+          "id": "T3-a",
+          "title": "responded_at 与 opened_at 相隔不超过 24 小时",
+          "why": "超时是唯一能用时间戳证明的服务违约，也是投诉升级最常见的起点",
+          "kind": "data",
+          "path": "examples/工单质检/tickets.json",
+          "assert": [
+            { "sla": { "start": "opened_at", "end": "responded_at", "max_hours": 24 } }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "高风险工单必须有升级路径",
+      "verbatim": "「高风险但无升级路径」—— docs/评审-同事契约v1.1.md §3.2（场景 5）",
+      "loop": [
+        "挑出 risk = high 的工单",
+        "看有没有 escalation_path",
+        "高风险留在没有处置权的人手里，等于把风险攒到爆"
+      ],
+      "criteria": [
+        {
+          "id": "T4-a",
+          "title": "risk=high 时 escalation_path 非空",
+          "why": "「不替人决策」的另一面：机器可以标记风险，但不能把风险留在原地",
+          "kind": "data",
+          "path": "examples/工单质检/tickets.json",
+          "assert": [
+            {
+              "when": { "field": "risk", "in": ["high"] },
+              "required": ["escalation_path"]
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "例外放行必须有签字、时间、理由",
+      "verbatim": "「例外放行同样要签字：谁批的、什么时候、为什么 —— 少一样就是没人负责。」—— docs/四角色协议.md §2.1",
+      "loop": [
+        "挑出 exception = true 的工单",
+        "看 signature_id / signed_at / reason 是否都在",
+        "少任何一项，这条例外就是没人负责的例外"
+      ],
+      "criteria": [
+        {
+          "id": "T5-a",
+          "title": "exception=true 时三件套齐全",
+          "why": "例外可以放，但放行的人必须留名 —— 否则「特批」就成了绕过流程的通用口令",
+          "kind": "data",
+          "path": "examples/工单质检/tickets.json",
+          "assert": [
+            {
+              "when": { "field": "exception", "in": [true] },
+              "required": ["signature_id", "signed_at", "reason"]
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "T6",
+      "title": "人改过的联系方式不许被机器覆盖",
+      "verbatim": "「一个字不动，交给人」—— docs/四角色协议.md §2.2",
+      "loop": [
+        "挑出有 contact_human 的工单（人核对过的值）",
+        "把最终 contact 与它比",
+        "不一致就是机器把人工值覆盖掉了"
+      ],
+      "criteria": [
+        {
+          "id": "T6-a",
+          "title": "有 contact_human 时 contact 必须与它相等",
+          "why": "机器只填空，遇到已有值就记冲突 —— 覆盖一次，人就不再信任任何补空",
+          "kind": "data",
+          "path": "examples/工单质检/tickets.json",
+          "assert": [
+            {
+              "when": { "field": "contact_human", "nonempty": true },
+              "compare": { "pairs": [["contact", "contact_human"]], "expect": "eq" }
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "T7",
+      "title": "复核人不能和准备人同源",
+      "verbatim": "「关键决策必须有非同源复核；同源影子不得作为唯一复核者。」—— docs/四角色协议.md §2.5",
+      "loop": [
+        "挑出有复核人的工单",
+        "比对准备来源与复核来源",
+        "两边都是同一路（比如都是代理），这次复核就是自己给自己盖章"
+      ],
+      "criteria": [
+        {
+          "id": "T7-a",
+          "title": "有 reviewed_by 时 author_source ≠ reviewer_source",
+          "why": "同一份数据训练出来的影子给自己复核，只会把错误复核成一致 —— 那不是第二双眼睛",
+          "kind": "data",
+          "path": "examples/工单质检/tickets.json",
+          "assert": [
+            {
+              "when": { "field": "reviewed_by", "nonempty": true },
+              "compare": { "pairs": [["author_source", "reviewer_source"]], "expect": "ne" }
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    }
+  ]
+}

@@ -17,13 +17,31 @@ from typing import Any, Mapping
 
 FORMAT = "workcovenant.contract/1"
 
-# 判据只有四种可执行的形态。加新形态要同时加执行器（wvc/checks.py）和本文档。
-KINDS = ("cmd", "file", "links", "manual")
+# 判据只有五种可执行的形态。加新形态要同时加执行器（wvc/checks.py）和本文档。
+KINDS = ("cmd", "file", "links", "manual", "data")
 # `cmd` 的 expect 只认这几个键；写错的键必须报错，不许当没看见。
 EXPECT_KEYS = ("exit", "stdout_contains", "stdout_regex", "stderr_contains")
 WEIGHTS = (1, 2, 3)
 DEFAULT_TIMEOUT = 120
 MAX_TIMEOUT = 600
+
+# 字段白名单：不在这里的键一律拒绝。
+# 为什么连"多写一个字段"都要拒绝：`blockng: true` 会被旧校验静默忽略，
+# 那条判据照常加载、照常显示，只是**再也不阻断**。一个没人看得见的降级，
+# 比明着写错危险得多 —— 所以宁可在加载时吵一次。
+TOP_KEYS = frozenset({"format", "id", "name", "profession", "version", "owner",
+                      "note", "requirements"})
+REQ_KEYS = frozenset({"id", "title", "verbatim", "loop", "criteria"})
+UNIVERSAL_KEYS = frozenset({"id", "title", "why", "kind", "blocking", "weight", "requires"})
+KIND_KEYS = {
+    "cmd": frozenset({"run", "expect", "timeout"}),
+    "file": frozenset({"path", "contains", "min_bytes"}),
+    "links": frozenset({"path"}),
+    "manual": frozenset({"evidence"}),
+    "data": frozenset({"path", "assert"}),
+}
+ALL_KEYS = UNIVERSAL_KEYS.union(*KIND_KEYS.values())
+DATA_CLAUSES = ("required", "forbidden", "compare", "sla")
 
 
 class ContractError(Exception):
@@ -46,6 +64,7 @@ class Criterion:
     min_bytes: int = 0
     evidence: str = ""
     timeout: int = DEFAULT_TIMEOUT
+    asserts: tuple[Mapping[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -109,6 +128,9 @@ def validate(raw: Mapping[str, Any]) -> list[str]:
 
     if raw.get("format") != FORMAT:
         errs.append(f"`format` 必须是 `{FORMAT}`，实际是 {raw.get('format')!r}")
+    for k in raw:
+        if k not in TOP_KEYS:
+            errs.append(f"顶层有不认识的字段 `{k}` —— 写错的键会被静默忽略，所以这里直接拒绝")
     for k in ("id", "name", "profession", "version", "owner"):
         need(raw, k, "顶层")
     if isinstance(raw.get("version"), str) and not re.fullmatch(r"\d+\.\d+\.\d+", raw["version"]):
@@ -135,6 +157,9 @@ def validate(raw: Mapping[str, Any]) -> list[str]:
             if rid in seen_req:
                 errs.append(f"{where} 的 id 重复")
             seen_req.add(rid)
+        for k in req:
+            if k not in REQ_KEYS:
+                errs.append(f"{where} 有不认识的字段 `{k}` —— 写错的键会被静默忽略")
         for k in ("title", "verbatim"):
             need(req, k, where)
         loop = req.get("loop")
@@ -166,6 +191,7 @@ def validate(raw: Mapping[str, Any]) -> list[str]:
             if kind not in KINDS:
                 errs.append(f"{cwhere} 的 `kind` 必须是 {'/'.join(KINDS)} 之一，实际是 {kind!r}")
                 continue
+            errs.extend(_field_errors(c, kind, cwhere))
             if kind == "cmd":
                 need(c, "run", cwhere)
                 exp = c.get("expect", {})
@@ -177,10 +203,12 @@ def validate(raw: Mapping[str, Any]) -> list[str]:
                             errs.append(f"{cwhere} 的 `expect.{k}` 不认识（只认 {'/'.join(EXPECT_KEYS)}）")
                     if "exit" in exp and not isinstance(exp["exit"], int):
                         errs.append(f"{cwhere} 的 `expect.exit` 必须是整数")
-            if kind in ("file", "links"):
+            if kind in ("file", "links", "data"):
                 need(c, "path", cwhere)
             if kind == "manual":
                 need(c, "evidence", cwhere)
+            if kind == "data":
+                errs.extend(_assert_errors(c.get("assert"), cwhere))
 
             blocking = c.get("blocking", False)
             if not isinstance(blocking, bool):
@@ -212,6 +240,119 @@ def validate(raw: Mapping[str, Any]) -> list[str]:
                     reason = _escape_reason(n)
                     if reason:
                         errs.append(f"{cwhere} 的 `requires` 里的 {n!r} {reason}")
+    return errs
+
+
+def _field_errors(c: Mapping[str, Any], kind: str, where: str) -> list[str]:
+    """字段白名单 + 字段归属：不认识的键、放错判据类型的键，一律拒绝。
+
+    这两条是同一件事的两面 —— `blockng` 会被静默忽略，`run` 写在 `file` 判据上
+    同样会被静默忽略。只要"写了但没生效"是可能的，报告就会替一个没跑过的判据说话。
+    """
+    errs: list[str] = []
+    allowed = UNIVERSAL_KEYS | KIND_KEYS[kind]
+    for k in c:
+        if k not in ALL_KEYS:
+            errs.append(f"{where} 有不认识的字段 `{k}` —— 写错的键会被静默忽略，"
+                        "例如把 blocking 写成 blockng，那条判据就再也不阻断")
+        elif k not in allowed:
+            owner = next((x for x, ks in KIND_KEYS.items() if k in ks), "?")
+            errs.append(f"{where} 的 `{k}` 只用于 {owner} 判据，这里 kind={kind}")
+    return errs
+
+
+def _assert_errors(blk: Any, where: str) -> list[str]:
+    """`data` 判据的子句校验。子句是白名单的：四个形状，多一个都不认。"""
+    if not isinstance(blk, list) or not blk:
+        return [f"{where} 的 `assert` 必须是非空数组 —— 没有子句就等于没判"]
+    errs: list[str] = []
+    for i, a in enumerate(blk):
+        w = f"{where} 的 assert[{i}]"
+        if not isinstance(a, dict):
+            errs.append(f"{w} 必须是对象")
+            continue
+        for k in a:
+            if k not in DATA_CLAUSES and k != "when":
+                errs.append(f"{w} 有不认识的键 `{k}`（子句只认 {'/'.join(DATA_CLAUSES)} + when）")
+        clauses = [k for k in a if k in DATA_CLAUSES]
+        if len(clauses) != 1:
+            errs.append(f"{w} 必须恰好有一个子句（{'/'.join(DATA_CLAUSES)}），实际 {len(clauses)} 个")
+            continue
+        if "when" in a:
+            errs.extend(_when_errors(a["when"], w))
+        name, spec = clauses[0], a[clauses[0]]
+        if name == "required":
+            errs.extend(_str_list_errors(spec, f"{w}.required"))
+        elif name == "forbidden":
+            if not isinstance(spec, dict) or set(spec) != {"fields", "terms"}:
+                errs.append(f"{w}.forbidden 必须是 {{fields, terms}} 两个键")
+                continue
+            errs.extend(_str_list_errors(spec["fields"], f"{w}.forbidden.fields"))
+            errs.extend(_str_list_errors(spec["terms"], f"{w}.forbidden.terms"))
+        elif name == "compare":
+            errs.extend(_compare_errors(spec, w))
+        elif name == "sla":
+            errs.extend(_sla_errors(spec, w))
+    return errs
+
+
+def _str_list_errors(v: Any, where: str) -> list[str]:
+    if not isinstance(v, list) or not v or not all(isinstance(x, str) and x.strip() for x in v):
+        return [f"{where} 必须是非空字符串数组"]
+    return []
+
+
+def _when_errors(when: Any, where: str) -> list[str]:
+    if not isinstance(when, dict):
+        return [f"{where} 的 `when` 必须是对象"]
+    errs: list[str] = []
+    for k in when:
+        if k not in ("field", "in", "nonempty"):
+            errs.append(f"{where}.when 有不认识的键 `{k}`")
+    if not isinstance(when.get("field"), str) or not when["field"].strip():
+        errs.append(f"{where}.when 缺 `field`")
+    if ("in" in when) == ("nonempty" in when):
+        errs.append(f"{where}.when 的 `in` 与 `nonempty` 必须二选一")
+    if "in" in when:
+        vals = when["in"]
+        if not isinstance(vals, list) or not vals:
+            errs.append(f"{where}.when.in 必须是非空数组")
+        elif any(isinstance(x, (list, dict)) or x is None for x in vals):
+            errs.append(f"{where}.when.in 只接受字符串/数字/布尔，实际有 {vals!r}")
+    if "nonempty" in when and when["nonempty"] is not True:
+        errs.append(f"{where}.when.nonempty 只接受 true")
+    return errs
+
+
+def _compare_errors(spec: Any, where: str) -> list[str]:
+    if not isinstance(spec, dict) or set(spec) != {"pairs", "expect"}:
+        return [f"{where}.compare 必须是 {{pairs, expect}} 两个键"]
+    errs: list[str] = []
+    pairs = spec["pairs"]
+    if not isinstance(pairs, list) or not pairs:
+        errs.append(f"{where}.compare.pairs 必须是非空数组")
+    else:
+        for p in pairs:
+            if (not isinstance(p, list) or len(p) != 2
+                    or not all(isinstance(x, str) and x.strip() for x in p)):
+                errs.append(f"{where}.compare.pairs 的每一项必须是两个字段名，实际 {p!r}")
+            elif p[0] == p[1]:
+                errs.append(f"{where}.compare.pairs 里 {p[0]!r} 和自己比 —— 永远相等，判不出东西")
+    if spec["expect"] not in ("eq", "ne"):
+        errs.append(f"{where}.compare.expect 只能是 eq / ne，实际 {spec['expect']!r}")
+    return errs
+
+
+def _sla_errors(spec: Any, where: str) -> list[str]:
+    if not isinstance(spec, dict) or set(spec) != {"start", "end", "max_hours"}:
+        return [f"{where}.sla 必须是 {{start, end, max_hours}} 三个键"]
+    errs: list[str] = []
+    for k in ("start", "end"):
+        if not isinstance(spec[k], str) or not spec[k].strip():
+            errs.append(f"{where}.sla.{k} 必须是字段名")
+    mh = spec["max_hours"]
+    if isinstance(mh, bool) or not isinstance(mh, (int, float)) or mh <= 0:
+        errs.append(f"{where}.sla.max_hours 必须是正数，实际 {mh!r}")
     return errs
 
 
@@ -252,6 +393,7 @@ def _build(raw: Mapping[str, Any], source: str) -> Contract:
                 path=c.get("path", ""), contains=c.get("contains", ""),
                 min_bytes=int(c.get("min_bytes", 0)), evidence=c.get("evidence", ""),
                 timeout=int(c.get("timeout", DEFAULT_TIMEOUT)),
+                asserts=tuple(c.get("assert", ())),
             )
             for c in r["criteria"]
         )

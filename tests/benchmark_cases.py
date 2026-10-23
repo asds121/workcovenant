@@ -1,117 +1,30 @@
 # -*- coding: utf-8 -*-
-"""基准集 —— 四类判据的**失败模式目录**。
+"""基准集 —— cmd / file / links / manual / contract / score 六组的失败模式目录。
 
 和普通单测的区别：单测证明"这样能过"，基准集证明"这样**必须不过**"。
 每一条都是一个真实会发生的破法（超时的命令、GBK 的输出、CRLF 的文件、
-代码块里写着示例链接、绝对路径想读到仓库外面去……），
+代码块里写着示例链接、绝对路径想读到仓库外面去、`blockng` 少写一个 i……），
 期望值写死在这里，跑一遍就知道引擎还认不认得出来。
+
+`data` 那组在 `benchmark_data.py`；骨架在 `bench_support.py` ——
+拆开只因为单个 `.py` 不许超过 20KB（仓库治理 G1-d），不是因为要多几层抽象。
 
 跑：`python tools/benchmark.py`（矩阵） 或 `python -m unittest tests.test_benchmark -q`
 """
 from __future__ import annotations
 
 import sys
-import tempfile
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from wvc import contract as C      # noqa: E402
-from wvc import score as S         # noqa: E402
-
-
-@dataclass(frozen=True)
-class Case:
-    id: str
-    group: str
-    title: str
-    why: str
-    build: Callable[[Path], dict]
-    states: dict[str, str] = field(default_factory=dict)   # 判据 id → 期望状态
-    exit_code: int | None = None
-    verdict: str = ""
-    error: str = ""                                        # 期望 ContractError 片段
-
-
-@dataclass
-class Outcome:
-    case: Case
-    report: S.Report | None = None
-    error: str = ""
-
-    @property
-    def ok(self) -> bool:
-        return not self.detail
-
-    @property
-    def detail(self) -> str:
-        """空串 = 符合预期；否则是"差在哪"。"""
-        c = self.case
-        if c.error:
-            if not self.error:
-                return f"{c.id} 期望契约被拒绝，实际加载成功"
-            if c.error not in self.error:
-                return f"{c.id} 报错里没有 {c.error!r}：{self.error}"
-            return ""
-        if self.error:
-            return f"{c.id} 契约没加载成功：{self.error}"
-        rep = self.report
-        assert rep is not None
-        for cid, want in c.states.items():
-            got = _state(rep, cid)
-            if got != want:
-                return f"{c.id} {cid} 期望 {want}，实际 {got}｜{_ev(rep, cid)}"
-        if c.exit_code is not None and rep.exit_code != c.exit_code:
-            return f"{c.id} 退出码期望 {c.exit_code}，实际 {rep.exit_code}"
-        if c.verdict and c.verdict not in rep.verdict:
-            return f"{c.id} 结论期望含 {c.verdict!r}，实际 {rep.verdict!r}"
-        return ""
-
-
-def _state(rep: S.Report, cid: str) -> str:
-    for row in rep.rows:
-        for crit, res in row.results:
-            if crit.id == cid:
-                return res.state
-    return "缺失"
-
-
-def _ev(rep: S.Report, cid: str) -> str:
-    for row in rep.rows:
-        for crit, res in row.results:
-            if crit.id == cid:
-                return res.evidence
-    return ""
-
-
-# ------------------------------------------------------------------ 小工具
-def _c(cid: str, kind: str, title: str = "", **kw) -> dict:
-    d = {"id": cid, "title": title or cid, "kind": kind,
-         "why": "基准集：这一类错了必须被认出来"}
-    d.update(kw)
-    return d
-
-
-def _doc(*cris: dict) -> dict:
-    return {
-        "format": C.FORMAT, "id": "bench", "name": "基准集用例", "profession": "基准",
-        "version": "1.0.0", "owner": "benchmark",
-        "requirements": [{"id": "R1", "title": "基准", "verbatim": "基准集用例",
-                          "loop": ["跑一次"], "criteria": list(cris)}],
-    }
-
-
-def _write(root: Path, name: str, data: str | bytes) -> None:
-    p = root / name
-    p.parent.mkdir(parents=True, exist_ok=True)
-    if isinstance(data, bytes):
-        p.write_bytes(data)
-    else:
-        p.write_text(data, encoding="utf-8")
-
+# 骨架与 `data` 组在别处；这里的 _c/_doc/_write 只是本地惯用名。
+from tests.bench_support import (Case, Outcome, criterion as _c, doc as _doc,  # noqa: E402
+                                 evidence as _ev, run_case, state as _state,
+                                 write as _write)
+from tests.benchmark_data import data_cases                                  # noqa: E402
+from wvc import contract as C                                                # noqa: E402
 
 # ------------------------------------------------------------------ cmd（8）
 def _cmd_cases() -> list[Case]:
@@ -242,7 +155,7 @@ def _manual_cases() -> list[Case]:
     ]
 
 
-# ------------------------------------------------------------------ contract（7）
+# ------------------------------------------------------------------ contract（9）
 def _contract_cases() -> list[Case]:
     def base() -> dict:
         return _doc(_c("C1", "cmd", run='{python} -c "print(1)"'))
@@ -274,6 +187,16 @@ def _contract_cases() -> list[Case]:
         d["requirements"][0]["loop"] = []
         return d
 
+    def typo_field(root: Path) -> dict:
+        """`blockng` —— 少一个 i，那条判据就再也不阻断。旧校验会静默放过。"""
+        d = base()
+        d["requirements"][0]["criteria"][0]["blockng"] = True
+        return d
+
+    def wrong_kind_field(root: Path) -> dict:
+        """把 `run` 写在 file 判据上：命令永远不会跑，判据却显示"过了"。"""
+        return _doc(_c("C1", "file", path="a.md", run="echo 什么都没跑"))
+
     return [
         Case("B-contract-01", "contract", "缺 why 要拒绝", "写不出守什么，就是「为了测而测」",
              no_why, error="why"),
@@ -287,6 +210,10 @@ def _contract_cases() -> list[Case]:
         Case("B-contract-06", "contract", "timeout 越界要拒绝", "0 秒超时会让所有命令类判据直接红",
              bad_timeout, error="timeout"),
         Case("B-contract-07", "contract", "没有闭环要拒绝", "没有闭环就没有验收", no_loop, error="loop"),
+        Case("B-contract-08", "contract", "字段名写错要拒绝", "blockng 会被静默忽略 —— 判据看着在，其实不拦",
+             typo_field, error="blockng"),
+        Case("B-contract-09", "contract", "字段放错判据类型要拒绝", "run 写在 file 上等于永远不跑",
+             wrong_kind_field, error="只用于 cmd"),
     ]
 
 
@@ -345,20 +272,7 @@ def _score_cases() -> list[Case]:
 
 
 CASES: list[Case] = [*_cmd_cases(), *_file_cases(), *_links_cases(),
-                     *_manual_cases(), *_contract_cases(), *_score_cases()]
-
-
-def run_case(case: Case) -> Outcome:
-    with tempfile.TemporaryDirectory(prefix="wvc_bench_") as d:
-        root = Path(d)
-        raw = case.build(root)
-        p = root / "_contract.json"
-        p.write_text(__import__("json").dumps(raw, ensure_ascii=False), encoding="utf-8")
-        try:
-            contract = C.load(p)
-        except C.ContractError as exc:
-            return Outcome(case, error=str(exc))
-        return Outcome(case, report=S.evaluate(contract, root))
+                     *_manual_cases(), *data_cases(), *_contract_cases(), *_score_cases()]
 
 
 def run_all() -> list[Outcome]:

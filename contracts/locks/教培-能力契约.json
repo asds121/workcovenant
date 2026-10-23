@@ -1,0 +1,31 @@
+{
+  "format": "workcovenant.lock/1",
+  "contract": "training-ability",
+  "version": "1.0.0",
+  "criteria": {
+    "L1-a": {
+      "blocking": true,
+      "fp": "sha256:6ff62d5b8ea4d689"
+    },
+    "L1-b": {
+      "blocking": false,
+      "fp": "sha256:73f6e096afb1e237"
+    },
+    "L1-c": {
+      "blocking": false,
+      "fp": "sha256:f464c545e6950674"
+    },
+    "L2-a": {
+      "blocking": false,
+      "fp": "sha256:8708c3fd607b51c1"
+    },
+    "L2-b": {
+      "blocking": true,
+      "fp": "sha256:9310908f973f886f"
+    },
+    "L3-a": {
+      "blocking": false,
+      "fp": "sha256:c6eddbfc6eedce3c"
+    }
+  }
+}

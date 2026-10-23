@@ -1,0 +1,35 @@
+{
+  "format": "workcovenant.lock/1",
+  "contract": "ticket-qc",
+  "version": "1.0.0",
+  "criteria": {
+    "T1-a": {
+      "blocking": true,
+      "fp": "sha256:16eca4536d964695"
+    },
+    "T2-a": {
+      "blocking": true,
+      "fp": "sha256:56bbf625efe00539"
+    },
+    "T3-a": {
+      "blocking": true,
+      "fp": "sha256:c89587b035df09dc"
+    },
+    "T4-a": {
+      "blocking": true,
+      "fp": "sha256:41c4052824db64e1"
+    },
+    "T5-a": {
+      "blocking": true,
+      "fp": "sha256:c209af80c4b30e39"
+    },
+    "T6-a": {
+      "blocking": true,
+      "fp": "sha256:160decf3615c1772"
+    },
+    "T7-a": {
+      "blocking": true,
+      "fp": "sha256:0095d989576cfaa1"
+    }
+  }
+}
