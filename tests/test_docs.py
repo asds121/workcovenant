@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from tests import benchmark_cases as B      # noqa: E402
+from wvc import __version__                # noqa: E402
 from wvc import contract as C               # noqa: E402
 
 DOCS = [ROOT / "README.md", ROOT / "CONTRIBUTING.md", ROOT / "CHANGELOG.md"]
@@ -105,6 +106,24 @@ class TestDocs(unittest.TestCase):
                 hits |= set(VERSION.findall(line))
         self.assertEqual({doc_v.group(1)}, hits,
                          f"协议首行 v{doc_v.group(1)}，README 写的是 {sorted(hits)}")
+
+    def test_框架版本与_CHANGELOG_一致(self):
+        """`__version__` 必须等于 CHANGELOG 里最新的框架版本。
+
+        判断框架新旧**以 CHANGELOG 为准**：发版行的形态是 `## 日期 · vX.Y.Z`；
+        协议版本（`四角色协议 v0.x`）写在标题里但不是发版行，不混为一谈。
+        `__version__` 是给外部消费的元数据 —— 它停在旧版本，读它的人就会漏掉
+        中间的改动，所以两条腿必须同时动。
+        """
+        versions = []
+        for line in (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").splitlines():
+            m = re.match(r"^## \d{4}-\d{2}-\d{2} · v(\d+(?:\.\d+){1,2})\b", line)
+            if m:
+                versions.append(tuple(int(x) for x in m.group(1).split(".")))
+        self.assertTrue(versions, "CHANGELOG 里找不到任何框架发版行（## 日期 · vX.Y.Z）")
+        latest = ".".join(str(x) for x in max(versions))
+        self.assertEqual(latest, __version__,
+                         f"CHANGELOG 最新是 v{latest}，wvc/__init__.py 写的是 {__version__} —— 两条腿必须同时动")
 
 
 if __name__ == "__main__":

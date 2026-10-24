@@ -32,6 +32,7 @@ class Case:
     exit_code: int | None = None
     verdict: str = ""
     error: str = ""                                        # 期望 ContractError 片段
+    contract: str = ""                                     # 跑的是哪份真契约（合成用例留空）
 
 
 @dataclass

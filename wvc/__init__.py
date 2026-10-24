@@ -11,4 +11,7 @@
 from . import checks, contract, score
 
 __all__ = ["checks", "contract", "score"]
-__version__ = "1.1.0"
+#: 框架版本。**判断框架新旧以 CHANGELOG 为准**（发版行形态 `## 日期 · vX.Y.Z`）——
+#: 这个值是给外部消费的元数据，不是尺子；但它停在旧版本，读它的人就会漏掉中间的
+#: 改动。两条腿必须同时动，`tests/test_docs.py` 盯着。
+__version__ = "1.2.1"

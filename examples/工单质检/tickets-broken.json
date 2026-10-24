@@ -1,6 +1,6 @@
 {
   "format": "workcovenant.example.tickets/1",
-  "_note": "故意写坏的 6 条：一条只犯一个错，好让每条判据都能被单独证明。它们不进契约的默认路径 —— 判据咬不咬得住，靠 tests/benchmark_data.py 喂它们。",
+  "_note": "故意写坏的 7 条：一条只犯一个错，好让每条判据都能被单独证明。它们不进契约的默认路径 —— 判据咬不咬得住，靠 tests/benchmark_data.py 喂它们。",
   "items": [
     {
       "id": "B-001",
@@ -79,6 +79,22 @@
       "responded_at": "2026-10-20T13:20:00",
       "author_source": "proxy:colleague",
       "reviewed_by": "manager-02",
+      "reviewer_source": "human:manager"
+    },
+    {
+      "id": "B-007",
+      "order_id": "O-9107",
+      "contact": "demo-contact-107",
+      "category": "补偿",
+      "text": "客户要求补偿，已按例外处理。",
+      "risk": "normal",
+      "exception": true,
+      "signed_at": "2026-10-20T14:05:00",
+      "reason": "客户坚持，按例外补偿",
+      "opened_at": "2026-10-20T14:00:00",
+      "responded_at": "2026-10-20T14:20:00",
+      "author_source": "proxy:colleague",
+      "reviewed_by": "manager-01",
       "reviewer_source": "human:manager"
     }
   ]

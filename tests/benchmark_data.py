@@ -127,10 +127,10 @@ def _construction_cases() -> list[Case]:
     return [
         Case("B-data-13", "data", "工程验收 × 坏样本 → 七条各自红",
              "每条坏记录只犯一个错；一条红遮住其余，就等于没验", build("整改单-坏.json"),
-             dict.fromkeys(ids, "fail"), 1),
+             dict.fromkeys(ids, "fail"), 1, contract="工程验收"),
         Case("B-data-14", "data", "工程验收 × 好样本 → 全绿",
              "换职业后判据只许红对的地方，不许扩大打击面", build("整改单.json"),
-             dict.fromkeys(ids, "pass"), 0),
+             dict.fromkeys(ids, "pass"), 0, contract="工程验收"),
     ]
 
 
@@ -154,11 +154,13 @@ def _real_cases() -> list[Case]:
         return _build
 
     red = {"T1-a": "fail", "T2-a": "fail", "T3-a": "fail", "T4-a": "fail",
-           "T5-a": "pass", "T6-a": "fail", "T7-a": "fail"}
+           "T5-a": "fail", "T6-a": "fail", "T7-a": "fail"}
     green = {f"T{i}-a": "pass" for i in range(1, 8)}
     return [
-        Case("B-data-11", "data", "真样板间 × 坏样本 → 六条各自红",
-             "每条坏记录只犯一个错；T5 不该被误伤", build("tickets-broken.json"), red, 1),
+        Case("B-data-11", "data", "真样板间 × 坏样本 → 七条各自红",
+             "每条坏记录只犯一个错；B-007 补的是「例外没签字」—— T5-a 以前从没红过",
+             build("tickets-broken.json"), red, 1, contract="工单质检"),
         Case("B-data-12", "data", "真样板间 × 好样本 → 全绿",
-             "判据只红不绿，说明它在乱咬", build("tickets.json"), green, 0),
+             "判据只红不绿，说明它在乱咬", build("tickets.json"), green, 0,
+             contract="工单质检"),
     ]

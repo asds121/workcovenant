@@ -251,11 +251,19 @@ def _diff_path(line: str) -> str:
 
 
 def scan_history(root: str | Path) -> ScanResult:
-    """扫**所有**提交的新增行 —— 公开仓库的历史删不干净，只能证明它从来是干净的。"""
+    """扫**所有**提交的新增行 —— 公开仓库的历史删不干净，只能证明它从来是干净的。
+
+    `--no-textconv` 是这条命令的一部分，不是可选项：仓库（或别人全局 gitconfig）
+    一旦给路径配上 textconv 滤镜，`git log -p` 显示的就是滤镜输出而不是 blob 原文 ——
+    密钥躺在历史里，diff 里一个字都不出现。2026-10-24 实测：滤镜进程确实会被 git
+    拉起来；滤镜命令拉不起来时 git 直接 `fatal: unable to read files to diff`
+    （退出码 128），整条命令失败、被 except 静默记成"历史未扫"。
+    关掉 textconv，扫到的才是"从来干净"里那个干净。
+    """
     root = Path(root).resolve()
     res = ScanResult()
     cmd = ["git", "-c", "core.quotepath=false", "log", "-p", "--all", "--no-color",
-           "--unified=0", "--pretty=format:__WC_COMMIT__%H"]
+           "--no-textconv", "--unified=0", "--pretty=format:__WC_COMMIT__%H"]
     try:
         raw = subprocess.run(cmd, cwd=str(root), capture_output=True, check=True,
                              timeout=180).stdout.decode("utf-8", "replace")

@@ -28,7 +28,7 @@ WorkCovenant 契约打分 · 仓库交付契约 1.2.0 · 通用（开源仓库�
 ==============================================================================
 R1   一眼知道这是什么　3/3　做到
    ✅ 阻断·R1-a     README 在，且不是占位文件
-              README.md 16.2 KB
+              README.md 16.3 KB
 ...
 按需求：R1 100%　R2 100%　R3 100%　S1 100%
 总分 100 / 100
@@ -38,11 +38,12 @@ R1   一眼知道这是什么　3/3　做到
 第一次来、想先看懂"判据长什么样"：去 [`examples/最小契约/`](examples/最小契约/) ——
 三条判据、三张单子、七十一行契约，把 `128.00` 改成 `128.10` 就红给你看。
 
-六条命令，六种"不体面"都能当场暴露：
+七条命令，七种"不体面"都能当场暴露：
 
 ```bash
 python tools/contract_check.py contracts/*.json   # 契约自己写全了没有
 python tools/benchmark.py                         # 57 种失败模式，引擎还认不认得出来
+python tools/coverage_check.py                    # 哪几条阻断判据从来没被弄红过
 python tools/mutation_check.py                    # 引擎咬不咬得住（10 条反证）
 python tools/lock_check.py --check                # 门槛有没有被悄悄调松
 python tools/privacy_scan.py --tree --history     # 有没有敏感信息（含历史）
