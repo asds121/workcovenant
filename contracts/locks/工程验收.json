@@ -1,0 +1,35 @@
+{
+  "format": "workcovenant.lock/1",
+  "contract": "construction-acceptance",
+  "version": "1.0.0",
+  "criteria": {
+    "F1-a": {
+      "blocking": true,
+      "fp": "sha256:b8996683c918d4ad"
+    },
+    "F2-a": {
+      "blocking": true,
+      "fp": "sha256:1dcb942c9e5c532d"
+    },
+    "F3-a": {
+      "blocking": true,
+      "fp": "sha256:1088b58f07d9fbeb"
+    },
+    "F3-b": {
+      "blocking": true,
+      "fp": "sha256:e5b3ff6de9805ee6"
+    },
+    "F4-a": {
+      "blocking": true,
+      "fp": "sha256:3e7b998e169479db"
+    },
+    "F5-a": {
+      "blocking": true,
+      "fp": "sha256:d7e11f37e092047a"
+    },
+    "F6-a": {
+      "blocking": true,
+      "fp": "sha256:c27f55ba8ee5f3a5"
+    }
+  }
+}

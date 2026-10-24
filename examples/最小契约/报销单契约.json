@@ -1,0 +1,71 @@
+{
+  "format": "workcovenant.contract/1",
+  "id": "minimal-expense",
+  "name": "最小契约：报销单",
+  "profession": "通用（教学用最小闭环）",
+  "version": "1.0.0",
+  "owner": "契约设计者",
+  "note": "这份契约只回答一个问题：一段原话，怎么切成能一口气走完的闭环，再写成会红的判据。它不是职业模板，三条判据都短到能一眼读完 —— 读完就该知道自己的活该怎么写。原话为示例构造，形状是真的。",
+  "requirements": [
+    {
+      "id": "E1",
+      "title": "报销金额必须等于发票合计",
+      "verbatim": "「金额跟发票对不上，就别往上报。」",
+      "loop": ["打开一张报销单", "读 amount 与 invoice_total", "两个数不相等就停下，不进入下一环"],
+      "criteria": [
+        {
+          "id": "E1-a",
+          "title": "amount 等于 invoice_total",
+          "why": "金额是唯一会被两头重复计算的东西，差一分就说明有一边没对上",
+          "kind": "data",
+          "path": "examples/最小契约/报销单.json",
+          "assert": [
+            { "compare": { "pairs": [["amount", "invoice_total"]], "expect": "eq" } }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "E2",
+      "title": "单子上不许有空",
+      "verbatim": "「事由、金额、发票号，缺一个我都不收。」",
+      "loop": ["拿到报销单", "逐个看事由 / 金额 / 发票号", "有一个空着就退回"],
+      "criteria": [
+        {
+          "id": "E2-a",
+          "title": "reason / amount / invoice_no 都不为空",
+          "why": "缺字段的单子后面每一步都要靠猜，猜出来的值最后没人认账",
+          "kind": "data",
+          "path": "examples/最小契约/报销单.json",
+          "assert": [
+            { "required": ["reason", "amount", "invoice_no"] }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "E3",
+      "title": "例外必须有人批",
+      "verbatim": "「超标可以报，但谁批的、什么时候批的、为什么，一样都不能少。」",
+      "loop": ["挑出 exception = true 的单子", "看批准人 / 批准时间 / 例外理由", "三样缺一样就不算批过"],
+      "criteria": [
+        {
+          "id": "E3-a",
+          "title": "exception 为真时三件套齐全",
+          "why": "例外是最容易被当成后门的东西，它必须比正常路径留痕更多，而不是更少",
+          "kind": "data",
+          "path": "examples/最小契约/报销单.json",
+          "assert": [
+            {
+              "when": { "field": "exception", "in": [true] },
+              "required": ["approver", "approved_at", "exception_reason"]
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    }
+  ]
+}

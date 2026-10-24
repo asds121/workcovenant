@@ -2,6 +2,16 @@ name: verify
 
 # 这个文件的作用不是"跑测试"，是让"可信"不依赖维护者的记性：
 # 每次 push 都重新证明一遍 —— 契约在、历史干净、反证咬得住、两道门都过。
+#
+# 两个系统都跑，不是凑数：这个仓库有一半的说服力来自 CRLF、GBK、中文路径这些
+# Windows 上的真事（基准集里有专门用例），只跑 Linux 等于那半边从来没被复验过。
+#
+# 编码不靠 shell 兜 —— 2026-10-24 本机实测（pwsh 7.6.7 / Windows PowerShell 5.1）：
+#   · 中文**参数**两版都不会吃：Windows 命令行本来就是 UTF-16，Python 拿到的是宽字符；
+#   · 5.1 真正的坑是读文件（Get-Content 按 ANSI 解 UTF-8）与 $OutputEncoding=us-ascii；
+#   · 7 修了这两条，但"解码子进程输出"仍按 [Console]::OutputEncoding（本机 gb2312）；
+#   · Python 往管道写什么编码，由 PYTHONUTF8 决定，不由 shell 决定（Windows 默认 gbk）。
+# 所以：job 级 PYTHONUTF8=1 + bash（不解码、字节直通），两边日志都是干净的 UTF-8。
 
 on:
   push:
@@ -9,7 +19,16 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,7 +39,7 @@ jobs:
           python-version: "3.12"
 
       - name: 契约体检（三段齐全 + 有阻断项）
-        run: python tools/contract_check.py contracts/仓库交付.json contracts/仓库治理.json contracts/教培-能力契约.json
+        run: python tools/contract_check.py contracts/仓库交付.json contracts/仓库治理.json contracts/教培-能力契约.json contracts/工单质检.json contracts/工程验收.json
 
       - name: 无敏感信息（工作树 + 全部历史 + 规则自测）
         run: python tools/privacy_scan.py --tree --history

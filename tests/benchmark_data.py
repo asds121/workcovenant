@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT))
 from tests.bench_support import Case, criterion as _c, doc as _doc, write as _write  # noqa: E402
 
 
-# ------------------------------------------------------------------ data（10）
+# ------------------------------------------------------------------ data（14）
 def _d(cid: str, clause: dict, title: str = "", **kw) -> dict:
     """data 判据：`assert` 是关键字，不能当参数名传，所以单独包一层。"""
     d = _c(cid, "data", title, path="d.json", **kw)
@@ -100,6 +100,37 @@ def data_cases() -> list[Case]:
         Case("B-data-10", "data", "没有记录数组 → 红", "数据文件结构不对，等于没交",
              not_list, {"C1": "fail"}, 1),
         *_real_cases(),
+        *_construction_cases(),
+    ]
+
+
+def _construction_cases() -> list[Case]:
+    """第二个「换职业」实例：工程验收。
+
+    与工单质检同一条路线，但字段全换（复验人、前后照片、检测报告、高危闭环）——
+    证明换职业只换判据内容，机制一个字不动。
+    """
+    contract = ROOT / "contracts" / "工程验收.json"
+    sample = ROOT / "examples" / "工程验收"
+
+    def build(name: str):
+        def _build(root: Path) -> dict:
+            _write(root, "d.json", (sample / name).read_text(encoding="utf-8"))
+            raw = json.loads(contract.read_text(encoding="utf-8"))
+            for req in raw["requirements"]:
+                for c in req["criteria"]:
+                    c["path"] = "d.json"
+            return raw
+        return _build
+
+    ids = ["F1-a", "F2-a", "F3-a", "F3-b", "F4-a", "F5-a", "F6-a"]
+    return [
+        Case("B-data-13", "data", "工程验收 × 坏样本 → 七条各自红",
+             "每条坏记录只犯一个错；一条红遮住其余，就等于没验", build("整改单-坏.json"),
+             dict.fromkeys(ids, "fail"), 1),
+        Case("B-data-14", "data", "工程验收 × 好样本 → 全绿",
+             "换职业后判据只许红对的地方，不许扩大打击面", build("整改单.json"),
+             dict.fromkeys(ids, "pass"), 0),
     ]
 
 

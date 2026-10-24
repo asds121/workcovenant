@@ -1,0 +1,148 @@
+{
+  "format": "workcovenant.contract/1",
+  "id": "construction-acceptance",
+  "name": "工程验收契约",
+  "profession": "工程验收（装修 / 整改复验）",
+  "version": "1.0.0",
+  "owner": "契约设计者",
+  "note": "第四份职业模板，也是第二个「换职业」实例：判据内容全换（照片、复验人、检测报告、高危闭环），机制一个字没动。数据单位是一批整改单，不是文件。",
+  "requirements": [
+    {
+      "id": "F1",
+      "title": "说改完了不算，得有人看过才算",
+      "verbatim": "「施工队说改完了，我不认。得有人到现场看过、签了字，这条才能关。」",
+      "loop": ["挑出 status = closed 的整改单", "看复验人与复验时间", "缺一个就把这条打回 open"],
+      "criteria": [
+        {
+          "id": "F1-a",
+          "title": "关闭的整改单必须有复验人与复验时间",
+          "why": "「已整改」是施工方的一句话，不是证据；没有复验的关闭，等于把验收权交给了被验收的人",
+          "kind": "data",
+          "path": "examples/工程验收/整改单.json",
+          "assert": [
+            { "when": { "field": "status", "in": ["closed"] }, "required": ["recheck_by", "recheck_at"] }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "title": "自己改的自己不能验",
+      "verbatim": "「谁改的谁验？那叫自说自话。」",
+      "loop": ["挑出有复验人的单子", "比对整改方与复验人", "是同一个人就不算复验"],
+      "criteria": [
+        {
+          "id": "F2-a",
+          "title": "recheck_by ≠ rectified_by",
+          "why": "自己改自己验，会把错误复核成一致 —— 这与「同源不是独立复核」是同一条红线，只是换了行业",
+          "kind": "data",
+          "path": "examples/工程验收/整改单.json",
+          "assert": [
+            {
+              "when": { "field": "recheck_by", "nonempty": true },
+              "compare": { "pairs": [["rectified_by", "recheck_by"]], "expect": "ne" }
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "F3",
+      "title": "前后照片要能对上，同一张糊弄不了人",
+      "verbatim": "「前后都得有照片。拿同一张交两次的，我见过，别来这套。」",
+      "loop": ["挑出关闭的单子", "看整改前 / 整改后两张照片", "少一张、或两张一样，都不算改完"],
+      "criteria": [
+        {
+          "id": "F3-a",
+          "title": "关闭的整改单必须有整改前后照片",
+          "why": "照片是现场唯一的可搬运证据；缺一张，复验就变成了凭记忆签字",
+          "kind": "data",
+          "path": "examples/工程验收/整改单.json",
+          "assert": [
+            { "when": { "field": "status", "in": ["closed"] }, "required": ["photo_before", "photo_after"] }
+          ],
+          "blocking": true
+        },
+        {
+          "id": "F3-b",
+          "title": "photo_before ≠ photo_after",
+          "why": "同一张照片既是「改之前」又是「改之后」，说明这条整改根本没有现场记录",
+          "kind": "data",
+          "path": "examples/工程验收/整改单.json",
+          "assert": [
+            {
+              "when": { "field": "photo_before", "nonempty": true },
+              "compare": { "pairs": [["photo_before", "photo_after"]], "expect": "ne" }
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "F4",
+      "title": "高危项必须在 24 小时内闭环",
+      "verbatim": "「高危的，今天发现今天闭环。过夜就是事故。」",
+      "loop": ["挑出 risk = high 的整改单", "读发现时间与关闭时间", "没有关闭时间，或隔了超过 24 小时，就不合格"],
+      "criteria": [
+        {
+          "id": "F4-a",
+          "title": "risk=high 时，发现到关闭不超过 24 小时",
+          "why": "验收是一个时刻，不是一段时间：那一刻高危还开着，就不该签字。所以没有 closed_at 不是「还没验」，是红",
+          "kind": "data",
+          "path": "examples/工程验收/整改单.json",
+          "assert": [
+            {
+              "when": { "field": "risk", "in": ["high"] },
+              "sla": { "start": "discovered_at", "end": "closed_at", "max_hours": 24 }
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "F5",
+      "title": "要检测报告的，没有报告不签字",
+      "verbatim": "「燃气、电气这些，照片看不出合格不合格，得看报告。」",
+      "loop": ["挑出 report_required = true 的单子", "看报告编号与出具时间", "缺一样就不进验收清单"],
+      "criteria": [
+        {
+          "id": "F5-a",
+          "title": "report_required 为真时，报告编号与时间齐全",
+          "why": "照片证明「做了」，报告证明「合格」；这两件事混成一件，验收就会把不合格的工程签成合格",
+          "kind": "data",
+          "path": "examples/工程验收/整改单.json",
+          "assert": [
+            { "when": { "field": "report_required", "in": [true] }, "required": ["report_id", "report_at"] }
+          ],
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "id": "F6",
+      "title": "例外放行必须有签字、时间、理由",
+      "verbatim": "「例外可以放，但谁批的、什么时候批的、为什么，一样都不能少。」",
+      "loop": ["挑出 exception = true 的整改单", "看批准人 / 批准时间 / 例外理由", "三样缺一样就不算批过"],
+      "criteria": [
+        {
+          "id": "F6-a",
+          "title": "exception 为真时三件套齐全",
+          "why": "例外是最容易被当成后门的东西：它必须比正常路径留痕更多，而不是更少",
+          "kind": "data",
+          "path": "examples/工程验收/整改单.json",
+          "assert": [
+            {
+              "when": { "field": "exception", "in": [true] },
+              "required": ["exception_approver", "exception_approved_at", "exception_reason"]
+            }
+          ],
+          "blocking": true
+        }
+      ]
+    }
+  ]
+}

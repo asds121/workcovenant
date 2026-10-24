@@ -1,7 +1,7 @@
 {
   "format": "workcovenant.lock/1",
   "contract": "repo-governance",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "criteria": {
     "G1-a": {
       "blocking": true,
@@ -25,7 +25,7 @@
     },
     "G2-b": {
       "blocking": false,
-      "fp": "sha256:8d8f45546b70ea8c"
+      "fp": "sha256:84cee5ecf0acd832"
     },
     "G2-c": {
       "blocking": true,

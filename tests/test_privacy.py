@@ -19,7 +19,9 @@ sys.path.insert(0, str(ROOT))
 from wvc import privacy as P      # noqa: E402
 
 FAKE_KEY = "gh" "p_" + "Z" * 36          # 运行期才是真形状，源码里不是（否则扫描器扫到自己）
-FAKE_COMPANY = "示例" "科技" "有限" "公司"
+#: 「示例 / 某某」是**合成标记**，P7 已放行（2026-10-23）；植入用的名字必须长得像真的 ——
+#: 否则这条判据验的是"示例会不会被抓"，而示例本来就不该被抓。
+FAKE_COMPANY = "宏远" "贸易" "有限" "公司"
 
 
 def git(repo: Path, *args: str) -> None:

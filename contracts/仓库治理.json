@@ -3,7 +3,7 @@
   "id": "repo-governance",
   "name": "仓库治理契约",
   "profession": "仓库治理（公开仓库）",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "owner": "workcovenant 维护者",
   "note": "这是发布前的门：高质量 / 可信 / 合规 / 无敏感信息，四条任一不过就不发。它和「仓库交付契约」分工不同 —— 交付契约管「写得好不好」，本契约管「能不能公开」。判据全部跑真命令，没有一条靠自觉。",
   "requirements": [
@@ -59,7 +59,7 @@
       "loop": [
         "同一份契约连跑两次",
         "两次的判定逐格相同",
-        "三份契约都通过体检，交付契约 100 分"
+        "五份契约都通过体检，交付契约 100 分"
       ],
       "criteria": [
         {
@@ -73,10 +73,10 @@
         },
         {
           "id": "G2-b",
-          "title": "四份契约全部通过体检（三段齐全 + 有阻断项）",
+          "title": "五份契约全部通过体检（三段齐全 + 有阻断项）",
           "why": "契约可以 100 分却漏验关键动作；体检先回答「该验的验了没有」",
           "kind": "cmd",
-          "run": "{python} tools/contract_check.py contracts/仓库交付.json contracts/仓库治理.json contracts/教培-能力契约.json contracts/工单质检.json",
+          "run": "{python} tools/contract_check.py contracts/仓库交付.json contracts/仓库治理.json contracts/教培-能力契约.json contracts/工单质检.json contracts/工程验收.json",
           "expect": { "exit": 0, "stdout_contains": "全部合格" }
         },
         {
@@ -173,7 +173,7 @@
       "title": "判据不许被悄悄放松",
       "verbatim": "「没有为了让它绿而放宽判据 —— 放宽可以，但要在 PR 里说清理由。」—— docs/仓库治理.md §5",
       "loop": [
-        "跑一次锁检查，四份契约都要有基线",
+        "跑一次锁检查，五份契约都要有基线",
         "把一条阻断判据降级成普通判据",
         "再跑一次：锁必须红，并指到那条判据"
       ],

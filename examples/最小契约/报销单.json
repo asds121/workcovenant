@@ -1,0 +1,33 @@
+{
+  "format": "workcovenant.example.expense/1",
+  "note": "样例数据，全部虚构。发票号写成 INV-000N，批准人写成 manager-0N。这份是三张都合规的快照 —— 想看红，把 B-001 的 amount 改成 128.10 再跑一次。",
+  "items": [
+    {
+      "id": "B-001",
+      "reason": "市内交通",
+      "amount": 128.00,
+      "invoice_total": 128.00,
+      "invoice_no": "INV-0001",
+      "exception": false
+    },
+    {
+      "id": "B-002",
+      "reason": "客户招待（超出标准）",
+      "amount": 980.00,
+      "invoice_total": 980.00,
+      "invoice_no": "INV-0002",
+      "exception": true,
+      "exception_reason": "客户临时改期，当日无法改约",
+      "approver": "manager-01",
+      "approved_at": "2026-10-21T10:00:00"
+    },
+    {
+      "id": "B-003",
+      "reason": "打印耗材",
+      "amount": 56.50,
+      "invoice_total": 56.50,
+      "invoice_no": "INV-0003",
+      "exception": false
+    }
+  ]
+}

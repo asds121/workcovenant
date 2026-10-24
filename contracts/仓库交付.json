@@ -3,7 +3,7 @@
   "id": "repo-delivery",
   "name": "仓库交付契约",
   "profession": "通用（开源仓库）",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "owner": "workcovenant 维护者",
   "note": "这份契约的打分对象是这个仓库自己。不是示范用的假数据 —— 它读的是 README、docs、脚本，跑的是真命令。改坏了当场变红。",
   "requirements": [
@@ -160,6 +160,14 @@
           "why": "第二份证明换职业能跑，第三份证明换数据结构（一批记录）也能跑 —— 只要换判据内容",
           "kind": "cmd",
           "run": "{python} tools/score.py contracts/工单质检.json --json",
+          "expect": { "exit": 0, "stdout_contains": "\"exit_code\": 0" }
+        },
+        {
+          "id": "S1-e",
+          "title": "第四份契约（工程验收）也能跑出分数",
+          "why": "第三次换职业：这次判据落在复验人、前后照片、检测报告与高危闭环上 —— 机制仍然一个字没改",
+          "kind": "cmd",
+          "run": "{python} tools/score.py contracts/工程验收.json --json",
           "expect": { "exit": 0, "stdout_contains": "\"exit_code\": 0" }
         },
         {

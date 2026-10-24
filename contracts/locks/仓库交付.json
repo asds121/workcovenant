@@ -1,7 +1,7 @@
 {
   "format": "workcovenant.lock/1",
   "contract": "repo-delivery",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "criteria": {
     "R1-a": {
       "blocking": true,
@@ -54,6 +54,10 @@
     "S1-d": {
       "blocking": false,
       "fp": "sha256:c29eda57b066332c"
+    },
+    "S1-e": {
+      "blocking": false,
+      "fp": "sha256:e5ded26215f9b67c"
     },
     "S1-c": {
       "blocking": false,
