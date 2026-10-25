@@ -36,6 +36,24 @@ READ_SIZE = re.compile(r"README\.md ([\d.]+) KB")
 #: 里面 `tools/…`、`tests/…` 属于那边 —— 在这里判它死链，判的是一个本来就不该存在的文件。
 EXEMPT = {"docs/样板间-会计.md"}
 
+#: 公开仓库不带内部项目代号 —— CHANGELOG 2026-10-24 立过这条规矩，但当时只改了字，
+#: 没有任何判据守它；8 小时后 `docs/样板间-会计.md` 里就回流了两处。
+#: 代号本身不含客户信息，它坏的是"这个仓库说到做到"这一条 —— 而那正是本仓库唯一的卖点。
+#: 拼接写，免得判据自己成为命中的那一处。
+INTERNAL_CODENAMES = ("quick" + "-entry", "quick" + "-entry-pm")
+
+#: 代号写进代码注释和写进文档是同一件事，两种都扫。
+#: `.workbuddy/` 是本地记忆、`__pycache__` 是字节码，都不随仓库发布。
+PUBLIC_TEXT = (".md", ".py")
+
+
+def _public_text_files() -> list[Path]:
+    """所有会公开的文本文件。少扫一处，那一处就等于豁免。"""
+    skip = {".git", ".workbuddy", "__pycache__"}
+    return sorted(p for p in ROOT.rglob("*")
+                  if p.suffix in PUBLIC_TEXT
+                  and not (skip & set(p.relative_to(ROOT).parts)))
+
 
 def _mutation_count() -> int:
     """反证条数以注册表为准，不数输出行。"""
@@ -56,6 +74,21 @@ class TestDocs(unittest.TestCase):
                 if not (ROOT / ref).exists():
                     missing.append(f"{doc.relative_to(ROOT)} → {ref}")
         self.assertEqual([], missing, "文档引用了不存在的文件：" + "; ".join(missing))
+
+    def test_公开文档不带内部项目代号(self):
+        """规则写进 CHANGELOG 不等于规则被执行 —— 这条是它的机器判据。
+
+        一个项目代号不泄露客户，但它泄露"规矩只写在纸上"。这个仓库把可信度
+        押在"自己管自己"上，那一句话比任何一个数字都贵。
+        """
+        hits = []
+        for doc in _public_text_files():
+            for lineno, line in enumerate(doc.read_text(encoding="utf-8").splitlines(), 1):
+                for name in INTERNAL_CODENAMES:
+                    if name in line:
+                        hits.append(f"{doc.relative_to(ROOT).as_posix()}:{lineno} → {name}")
+        self.assertEqual([], hits,
+                         "公开文档里出现内部项目代号（换成本仓库的叫法「样板间」）：" + "; ".join(hits))
 
     def test_失败模式条数处处一致(self):
         n = len(B.CASES)

@@ -1,0 +1,39 @@
+#!/bin/sh
+# 提交前秒级快检 —— **便利层，不是门**。
+#
+# 只跑两条，因为这两条正是"换个目录干活就会漏"的那两种：
+#   · 内部项目代号（写进代码注释和写进文档是同一件事）
+#   · 真实客户名 / 密钥 / 本机路径
+# 合计不到 2 秒，所以没有理由跳过它。
+#
+# 为什么不在这里跑全套门：本地卡一分钟，换来的只有 --no-verify。
+# 真门在 CI（.github/workflows/verify.yml）—— unittest discover、基准集、反证、两份契约。
+# 所以绕过 hook 不叫"通过"，只叫"把判决推迟到 push 那一刻"。
+#
+# 装一次（不随克隆传播）：git config core.hooksPath .githooks
+
+set -eu
+
+PY="${PYTHON:-}"
+if [ -z "$PY" ]; then
+    for c in python3 python py; do
+        if command -v "$c" >/dev/null 2>&1 &&
+           "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)' 2>/dev/null; then
+            PY="$c"
+            break
+        fi
+    done
+fi
+
+if [ -z "$PY" ]; then
+    echo "" >&2
+    echo "✗ pre-commit 找不到 Python 3.10+（试过 \$PYTHON / python3 / python / py）" >&2
+    echo "  这里是拒绝提交，不是静默跳过 —— 静默跳过比没装更坏。" >&2
+    echo "  指定解释器：PYTHON=/path/to/python git commit ..." >&2
+    echo "" >&2
+    exit 1
+fi
+
+echo "▸ 内部代号 + 敏感信息（两秒）"
+"$PY" -m unittest tests.test_docs -q
+"$PY" tools/privacy_scan.py --tree
