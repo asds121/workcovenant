@@ -53,6 +53,9 @@ jobs:
       - name: 基准集（失败模式必须仍然被判红）
         run: python tools/benchmark.py --quiet
 
+      - name: 行为覆盖报告（不阻断 —— 它只负责把"哪几条从没被弄红过"摆出来）
+        run: python tools/coverage_check.py --quiet
+
       - name: 质量门（仓库交付契约）
         run: python tools/score.py contracts/仓库交付.json
 
