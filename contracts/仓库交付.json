@@ -3,7 +3,7 @@
   "id": "repo-delivery",
   "name": "仓库交付契约",
   "profession": "通用（开源仓库）",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "owner": "workcovenant 维护者",
   "note": "这份契约的打分对象是这个仓库自己。不是示范用的假数据 —— 它读的是 README、docs、脚本，跑的是真命令。改坏了当场变红。",
   "requirements": [
@@ -37,11 +37,11 @@
         },
         {
           "id": "R1-c",
-          "title": "有一节「30 秒」，且写了预期输出",
+          "title": "有一节讲最快上手，且写了预期输出",
           "why": "只给命令不给预期输出，等于让人自己猜跑对了没有",
           "kind": "file",
           "path": "README.md",
-          "contains": "^## 30 秒"
+          "contains": "^\\*\\*预期输出\\*\\*"
         }
       ]
     },
